@@ -65,12 +65,17 @@ final class AuthService: NSObject, ObservableObject {
         let provider = ASAuthorizationAppleIDProvider()
         do {
             let state = try await provider.credentialState(forUserID: userID)
-            await MainActor.run {
-                isSignedIn = (state == .authorized)
-                if !isSignedIn { clearSession() }
+            switch state {
+            case .authorized:
+                isSignedIn = true
+            case .revoked, .notFound:
+                clearSession()
+            default:
+                break // .transferred or future states — keep the session
             }
         } catch {
-            await MainActor.run { isSignedIn = false }
+            // Transient failure (e.g. no network at foreground) — do NOT
+            // sign the user out over a connectivity blip.
         }
     }
 

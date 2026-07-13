@@ -4,6 +4,7 @@ struct SearchView: View {
     @EnvironmentObject var searchVM: SearchViewModel
     @EnvironmentObject var libraryVM: LibraryViewModel
     @EnvironmentObject var ck: CloudKitService
+    @EnvironmentObject var dataStore: DataStore
 
     @State private var pendingResult: iTunesResult? = nil
     @State private var showDuplicateAlert = false
@@ -24,7 +25,7 @@ struct SearchView: View {
                     .background(ArchiveTheme.surface)
                     .overlay(Rectangle().frame(height: 1).foregroundColor(ArchiveTheme.border), alignment: .bottom)
                     .onSubmit {
-                        Task { await searchVM.search(existingIDs: Set(libraryVM.items.map(\.iTunesID))) }
+                        Task { await searchVM.search() }
                     }
 
                 // Error / empty state
@@ -45,7 +46,7 @@ struct SearchView: View {
                                 Button { confirmAdd(result) } label: {
                                     searchCard(result)
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(.card)
                             }
                         }
                         .padding(40)
@@ -117,11 +118,11 @@ struct SearchView: View {
             year: result.year,
             type: result.type,
             artworkURL: result.artworkURL,
+            storeURL: result.storeURL,
             genres: [],
             watched: false,
             dateAdded: Date()
         )
-        try? await ck.saveItem(item)
-        await MainActor.run { libraryVM.items.append(item) }
+        dataStore.saveItem(item)
     }
 }

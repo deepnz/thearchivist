@@ -3,7 +3,7 @@ import SwiftUI
 struct WatchlistsView: View {
     @EnvironmentObject var watchlistVM: WatchlistViewModel
     @EnvironmentObject var libraryVM: LibraryViewModel
-    @EnvironmentObject var ck: CloudKitService
+    @EnvironmentObject var dataStore: DataStore
 
     @State private var newListName = ""
     @State private var showNewListInput = false
@@ -90,7 +90,7 @@ struct WatchlistsView: View {
                                             NavigationLink(value: item) {
                                                 PosterCardView(item: item)
                                             }
-                                            .buttonStyle(.plain)
+                                            .buttonStyle(.card)
                                         }
                                     }
                                     .padding(40)
@@ -130,8 +130,7 @@ struct WatchlistsView: View {
         let name = newListName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
         let list = Watchlist(id: UUID().uuidString, name: name, itemIDs: [])
-        watchlistVM.watchlists.append(list)
-        Task { try? await ck.saveWatchlist(list) }
+        dataStore.saveWatchlist(list)
         newListName = ""
     }
 
@@ -142,16 +141,13 @@ struct WatchlistsView: View {
         guard !name.isEmpty else { return }
         var updated = watchlistVM.watchlists[idx]
         updated.name = name
-        watchlistVM.watchlists[idx] = updated
-        Task { try? await ck.saveWatchlist(updated) }
+        dataStore.saveWatchlist(updated)
         listToRename = nil
     }
 
     private func deleteList() {
         guard let list = listToDelete else { return }
-        watchlistVM.watchlists.removeAll { $0.id == list.id }
-        if watchlistVM.selectedListID == list.id { watchlistVM.selectedListID = nil }
-        Task { try? await ck.deleteWatchlist(list) }
+        dataStore.deleteWatchlist(list)
         listToDelete = nil
     }
 }

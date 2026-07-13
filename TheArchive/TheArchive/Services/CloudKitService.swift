@@ -28,6 +28,17 @@ final class CloudKitService: ObservableObject {
         return updated
     }
 
+    /// True for errors worth retrying after a conflict (another device won the race).
+    nonisolated private static func isConflict(_ error: Error) -> Bool {
+        guard let ckError = error as? CKError else { return false }
+        if ckError.code == .serverRecordChanged { return true }
+        if ckError.code == .partialFailure,
+           let partial = ckError.partialErrorsByItemID?.values {
+            return partial.contains { ($0 as? CKError)?.code == .serverRecordChanged }
+        }
+        return false
+    }
+
     // MARK: - Library Items
 
     func fetchAllItems() async throws -> [LibraryItem] {
@@ -46,21 +57,30 @@ final class CloudKitService: ObservableObject {
         return items
     }
 
+    /// Saves the item; on a changeTag conflict (e.g. the in-memory record is
+    /// stale after a cache reload), re-applies our fields onto the server's
+    /// copy and saves that instead. Our local edit wins field-for-field.
     func saveItem(_ item: LibraryItem) async throws {
-        let record = item.toCKRecord()
-        try await db.save(record)
+        do {
+            try await db.save(item.toCKRecord())
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            guard let serverRecord = error.serverRecord else { throw error }
+            try await db.save(item.apply(to: serverRecord))
+        }
     }
 
     func deleteItem(_ item: LibraryItem) async throws {
-        let recordID = CKRecord.ID(recordName: item.id)
-        try await db.deleteRecord(withID: recordID)
+        try await deleteRecord(recordName: item.id)
     }
 
-    func itemExists(iTunesID: String) async throws -> Bool {
-        let pred = NSPredicate(format: "iTunesID == %@", iTunesID)
-        let query = CKQuery(recordType: LibraryItem.recordType, predicate: pred)
-        let (results, _) = try await db.records(matching: query, resultsLimit: 1)
-        return !results.isEmpty
+    /// Deleting a record that never reached the server (offline add-then-remove)
+    /// or was already deleted elsewhere is treated as success.
+    func deleteRecord(recordName: String) async throws {
+        do {
+            try await db.deleteRecord(withID: CKRecord.ID(recordName: recordName))
+        } catch let error as CKError where error.code == .unknownItem {
+            // Already gone — the desired end state.
+        }
     }
 
     // MARK: - LibraryCounter
@@ -70,8 +90,12 @@ final class CloudKitService: ObservableObject {
     func nextCatalogID(type: MediaType) async -> String {
         for attempt in 0..<3 {
             do {
-                let counter = (try? await db.record(for: counterRecordID))
-                    ?? CKRecord(recordType: "LibraryCounter", recordID: counterRecordID)
+                let counter: CKRecord
+                do {
+                    counter = try await db.record(for: counterRecordID)
+                } catch let error as CKError where error.code == .unknownItem {
+                    counter = CKRecord(recordType: "LibraryCounter", recordID: counterRecordID)
+                }
 
                 let key = type == .film ? "filmCount" : "seriesCount"
                 let current = counter[key] as? Int ?? 0
@@ -90,10 +114,14 @@ final class CloudKitService: ObservableObject {
                     db.add(op)
                 }
                 return Self.formatCatalogID(type: type, count: next)
-            } catch {
-                // Conflict — wait with exponential backoff then retry
+            } catch where Self.isConflict(error) {
+                // Another device incremented first — back off and retry
                 let delay: UInt64 = [500_000_000, 1_000_000_000, 2_000_000_000][attempt]
                 try? await Task.sleep(nanoseconds: delay)
+            } catch {
+                // Offline / iCloud unavailable — retrying won't help. The
+                // fallback ID is display-only and has no functional impact.
+                return Self.fallbackCatalogID(type: type)
             }
         }
         return Self.fallbackCatalogID(type: type)
@@ -117,12 +145,17 @@ final class CloudKitService: ObservableObject {
         return lists
     }
 
+    /// Same conflict policy as saveItem: our fields win on a stale changeTag.
     func saveWatchlist(_ list: Watchlist) async throws {
-        try await db.save(list.toCKRecord())
+        do {
+            try await db.save(list.toCKRecord())
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            guard let serverRecord = error.serverRecord else { throw error }
+            try await db.save(list.apply(to: serverRecord))
+        }
     }
 
     func deleteWatchlist(_ list: Watchlist) async throws {
-        let recordID = CKRecord.ID(recordName: list.id)
-        try await db.deleteRecord(withID: recordID)
+        try await deleteRecord(recordName: list.id)
     }
 }

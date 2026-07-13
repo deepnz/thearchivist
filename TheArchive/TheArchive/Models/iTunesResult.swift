@@ -10,11 +10,13 @@ struct iTunesResult: Identifiable, Decodable {
     let year: Int
     let type: MediaType
     let artworkURL: String   // 600x900bb substituted
+    let storeURL: String     // canonical store page (trackViewUrl / collectionViewUrl)
 
     private enum CodingKeys: String, CodingKey {
         case trackId, collectionId, trackName, collectionName
         case releaseDate, wrapperType, kind
         case artworkUrl100
+        case trackViewUrl, collectionViewUrl
     }
 
     init(from decoder: Decoder) throws {
@@ -28,6 +30,10 @@ struct iTunesResult: Identifiable, Decodable {
             let trackId = try c.decode(Int.self, forKey: .trackId)
             id = "\(trackId)"
             title = try c.decode(String.self, forKey: .trackName)
+            // Films: prefer the track's own store page
+            storeURL = try c.decodeIfPresent(String.self, forKey: .trackViewUrl)
+                    ?? (try c.decodeIfPresent(String.self, forKey: .collectionViewUrl))
+                    ?? ""
         } else {
             // TV collection
             type = .series
@@ -35,6 +41,10 @@ struct iTunesResult: Identifiable, Decodable {
             id = "\(collectionId)"
             title = try c.decodeIfPresent(String.self, forKey: .collectionName)
                     ?? (try c.decode(String.self, forKey: .trackName))
+            // Series: the collection page is the canonical destination
+            storeURL = try c.decodeIfPresent(String.self, forKey: .collectionViewUrl)
+                    ?? (try c.decodeIfPresent(String.self, forKey: .trackViewUrl))
+                    ?? ""
         }
 
         // Year from releaseDate

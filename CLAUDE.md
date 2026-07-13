@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-"The Archive" is a native tvOS 17+ SwiftUI app for curating a personal film & TV library. There is **no backend**: identity is Sign in with Apple, storage/sync is the CloudKit private database, metadata/artwork comes from the iTunes Search API, and titles deep-link into the Apple TV app via the `videos://` URL scheme.
+"The Archive" is a native tvOS 17+ SwiftUI app for curating a personal film & TV library. There is **no backend server**: identity is Sign in with Apple, durable storage/sync is the CloudKit private database, an on-device snapshot (Caches) makes the app fully usable offline, metadata/artwork comes from the iTunes Search API, and titles deep-link into the Apple TV app via the `videos://` URL scheme.
 
-The Xcode project lives in `TheArchive/`. Reference docs at `TheArchive/DESIGN_SPEC.md` (full product/UX spec, data model, visual tokens), `TheArchive/IMPLEMENTATION_PLAN.md` (task-by-task build plan), and `TheArchive/PROGRESS.md` (current status + known issues). `docs/future-features.md` lists out-of-scope ideas.
+The Xcode project lives in `TheArchive/`. Reference docs at `TheArchive/DESIGN_SPEC.md` (product/UX spec), `TheArchive/IMPLEMENTATION_PLAN.md` (original build plan — code has evolved past it), and `TheArchive/PROGRESS.md` (current status + known issues). `docs/future-features.md` lists out-of-scope ideas.
 
 ## Build & Test
 
@@ -18,52 +18,53 @@ xcodebuild build -target TheArchive -target TheArchiveTests \
   -sdk appletvsimulator26.2 -configuration Debug
 ```
 
-- **Known issue:** `xcodebuild test` fails due to an SDK (26.2) vs. simulator runtime (26.1) version-string mismatch. Run tests from Xcode instead: **Cmd+U** with the `TheArchiveTests` target. To run a single test, use Xcode's test navigator or `-only-testing:TheArchiveTests/ClassName/testName` once the mismatch is resolved.
-- All unit tests pass without network or CloudKit access **except** `iTunesServiceTests.search()` which hits the live iTunes API. Shared scheme: `TheArchive`.
-- Sign in with Apple does not work in the simulator; CloudKit requires an iCloud-signed-in device.
-
-## Temporary simulator code — do not ship
-
-`TheArchive/TheArchive/TheArchiveApp.swift` currently contains two blocks marked for removal before shipping:
-1. `.onAppear { auth.isSignedIn = true }` — bypasses sign-in for simulator testing.
-2. Mock library/watchlist data injected in `loadData()` instead of calling `CloudKitService.fetchAllItems()` / `fetchAllWatchlists()`.
-
-Preserve these while doing simulator-oriented work; flag them in any release-prep task.
+- **Known issue:** `xcodebuild test` fails due to an SDK (26.2) vs. simulator runtime (26.1) version-string mismatch. Run tests from Xcode instead: **Cmd+U** with the `TheArchiveTests` target. Single test: Xcode's test navigator or `-only-testing:TheArchiveTests/ClassName/testName` once the mismatch is resolved.
+- All unit tests are network-free (models, URL building, JSON fixtures, LocalStore in a temp dir, DataStore merge policy). Shared scheme: `TheArchive`.
+- Sign in with Apple does not work in the simulator; CloudKit requires an iCloud-signed-in device. For simulator UI work you can temporarily set `auth.isSignedIn = true` — never commit that.
+- The project uses Xcode 16 file-system-synchronized groups: new files under `TheArchive/TheArchive/` and `TheArchiveTests/` are picked up automatically; no pbxproj edits needed.
 
 ## Architecture
 
-MVVM with environment-object injection, all wired in `TheArchiveApp.swift` (auth, ck, libraryVM, searchVM, watchlistVM). Root view is a `TabView` (Library / Watchlists / Search) when signed in, `SignInView` otherwise.
+MVVM plus a **local-first data layer**, all wired in `TheArchiveApp.swift` init and injected as environment objects (auth, ck, libraryVM, searchVM, watchlistVM, dataStore).
 
 ```
 TheArchive/TheArchive/
 ├── Theme/ArchiveTheme.swift    # color tokens, font helpers, poster gradient fallback
-├── Models/                     # structs + CKRecord round-trip mapping
-├── Services/                   # CloudKitService, iTunesService, AuthService
+├── Models/                     # structs + CKRecord round-trip + Codable (snapshot)
+├── Services/
+│   ├── CloudKitService.swift   # CK CRUD, conflict merge, catalogID counter
+│   ├── LocalStore.swift        # JSON snapshot in Caches (tvOS-writable, purgeable)
+│   ├── DataStore.swift         # local-first repository + pending-op sync queue
+│   ├── AppleTVLink.swift       # videos:// deep-link construction + fallbacks
+│   └── iTunesService.swift, AuthService.swift
 ├── ViewModels/                 # per-tab state; pure logic as static funcs
 └── Views/                      # Auth/, Library/, Search/, Watchlists/
 ```
 
-**Testability convention:** business logic lives in `static` (nonisolated) pure functions on `@MainActor` classes — e.g. `LibraryViewModel.filter/sort/genrePills`, `CloudKitService.formatCatalogID/pruneStaleIDs`, `SearchViewModel.isDuplicate` — so tests never need a main actor, network, or CloudKit. Follow this pattern for new logic.
+**Data flow (critical to preserve):** Views mutate through `DataStore` (`saveItem`, `deleteItem`, `saveWatchlist`, `deleteWatchlist`) — never through `CloudKitService` directly. DataStore updates the view models synchronously, persists the snapshot to disk, queues the change, and syncs to CloudKit in the background; failures stay queued and flush on reconnect (NWPathMonitor via `LibraryViewModel.isOffline`), on foreground, and at launch. Launch is cache-first: `loadFromCache()` then `refreshFromCloud()`, whose merge policy is "server wins except records with local pending changes" (`DataStore.merge`, unit-tested). Sign-out calls `dataStore.clearLocal()` — on-device data belongs to the iCloud account.
+
+**Testability convention:** business logic lives in `static` nonisolated pure functions on `@MainActor` classes — e.g. `LibraryViewModel.filter/sort/genrePills`, `CloudKitService.formatCatalogID/pruneStaleIDs`, `DataStore.merge`, all of `AppleTVLink` — so tests never need a main actor, network, or CloudKit container. Follow this pattern for new logic.
 
 ### Data model invariants (CloudKit private DB)
 
-- **`iTunesID` is the only relational/dedup key.** It is a String holding the iTunes integer ID (`"\(trackId)"` for films, `"\(collectionId)"` for TV shows). Watchlist `itemIDs` arrays reference it; duplicate checks query it; deep links use it.
-- **`catalogID` (`MV-0042` / `SV-0007`) is display-only**, never used relationally. Generated by `CloudKitService.nextCatalogID` via compare-and-swap on a singleton `LibraryCounter` record (`savePolicy: .ifServerRecordUnchanged`, 3 retries with exponential backoff, fallback `MV-????`).
-- **`CKRecord` change tags must be preserved on updates.** `LibraryItem` carries an optional `ckRecord` captured when decoded from CloudKit; `toCKRecord()` mutates that record rather than creating a fresh one. Don't break this — creating a new `CKRecord` for an existing item causes server-record-changed conflicts.
-- **CloudKit queries are paginated.** `fetchAllItems`/`fetchAllWatchlists` loop over `CKQueryOperation.Cursor`; keep pagination on any new query.
-- Stale watchlist `itemIDs` are pruned on load by diffing against live `iTunesID` values (`pruneStaleIDs`).
-- CKRecord IDs are client-generated UUID strings.
-- Container ID is `iCloud.deepak-nalla.TheArchive` (in `CloudKitService.init`) and must match the bundle ID `deepak-nalla.TheArchive`.
+- **`iTunesID` is the only relational/dedup key.** String holding the iTunes integer ID (`trackId` for films, `collectionId` for TV seasons). Watchlist `itemIDs` reference it; duplicate checks and deep-link fallbacks use it.
+- **`storeURL`** holds the canonical iTunes Store page URL (`trackViewUrl`/`collectionViewUrl`) captured at add time — the preferred source for Apple TV deep links (scheme-swapped to `videos://` by `AppleTVLink`, host-validated to `itunes.apple.com`). Absent on legacy records; the CKRecord decoder defaults it to `""` and `AppleTVLink` falls back to a constructed ID URL, then to a TV-app search.
+- **`catalogID` (`MV-0042` / `SV-0007`) is display-only**, never relational. Generated by `CloudKitService.nextCatalogID` via compare-and-swap on a singleton `LibraryCounter` record; retries only on conflict, fails fast to `MV-????` when offline.
+- **CKRecord change tags:** models carry an optional in-memory `ckRecord` and `toCKRecord()` mutates it. After a cache reload `ckRecord` is nil, so `saveItem`/`saveWatchlist` also handle `serverRecordChanged` by re-applying fields onto `error.serverRecord` (local edit wins). Both mechanisms matter — don't remove either.
+- **Codable excludes `ckRecord`** (in-memory only). LocalStore snapshots use ISO-8601 dates.
+- **CloudKit queries are paginated** over `CKQueryOperation.Cursor`; deletes treat `unknownItem` as success (required for offline add-then-remove).
+- Container ID is `iCloud.deepak-nalla.TheArchive` (in `CloudKitService.init`) and must match the bundle ID `deepak-nalla.TheArchive`. Schema changes are additive-only; new fields auto-create in the dev environment on first write and must be promoted to production before release.
 
 ### Other conventions
 
-- **Auth:** the Apple user ID is stored in the **Keychain** (see `AuthService` keychain helpers), not UserDefaults. Credential validity is re-checked via `ASAuthorizationAppleIDProvider` on every app foreground.
-- **iTunes search:** use `media=all` with `entity=movie,tvSeason` — `media=movie` suppresses TV results. Search fires on commit, not live-typing (~20 req/min rate limit). Artwork URLs get the `100x100bb → 600x900bb` size-token substitution at add time.
-- **Theme:** always use `ArchiveTheme` tokens (gold `#c8973a` / crimson `#8b2635` on near-black) and font helpers, never raw colors/fonts. Bundled fonts are Playfair Display (titles) and Courier Prime (body/mono); Playfair Bold variants are **not** bundled — `titleFont` uses PlayfairDisplay-Italic. New fonts must be added to `Info.plist` `UIAppFonts`.
-- **Error feedback:** system SwiftUI `Alert` only — no custom toast components.
-- **tvOS focus:** focused cards scale 1.1× with a gold shadow; context menus use long-press (the Menu button navigates back).
+- **Auth:** Apple user ID lives in the **Keychain**. Credential state is re-checked on every foreground; only `.revoked`/`.notFound` sign the user out — thrown errors (transient network) must never clear the session.
+- **iTunes search:** `media=all` with `entity=movie,tvSeason` (`media=movie` suppresses TV results) plus `country=` from `iTunesService.storefrontCountry` so IDs/URLs match the user's storefront. Search fires on commit, not live-typing (~20 req/min rate limit). Artwork URLs get the `100x100bb → 600x900bb` substitution at decode time.
+- **Performance:** `URLCache.shared` is enlarged in `TheArchiveApp.init` for poster artwork; `LibraryView` computes `filteredItems` once per render and passes it down. Poster grids use `.buttonStyle(.card)` for the native tvOS focus treatment.
+- **Theme:** always use `ArchiveTheme` tokens (gold `#c8973a` / crimson `#8b2635` on near-black) and font helpers. Bundled fonts: Playfair Display (titles; Bold variants NOT bundled — `titleFont` uses PlayfairDisplay-Italic) and Courier Prime. New fonts must be added to `Info.plist` `UIAppFonts`.
+- **Error feedback:** system SwiftUI `Alert` only. Context menus use long-press (the Menu button navigates back).
+- **Assets:** tvOS brand assets live in `Assets.xcassets/App Icon & Top Shelf Image.brandassets` (layered imagestacks + top shelf) plus `LaunchImage.launchimage`; build settings reference them by those exact names. Regeneratable — the PNGs were produced from the bundled fonts/palette.
 - Commit messages follow conventional-commit style (`feat:`, `fix:`, `chore:`).
 
 ## Outstanding manual steps (see PROGRESS.md)
 
-CloudKit schema setup (Queryable index on `LibraryItem.iTunesID`, Sortable on `dateAdded` in the CloudKit Dashboard), real-device end-to-end testing (including validating the `videos://itunes.apple.com/show?id=` deep link for series), and App Store asset prep.
+Build + run the test suite in Xcode (no Swift toolchain in Linux CI/sessions), CloudKit dev-schema creation + production promotion, and real-device validation of Sign in with Apple, CloudKit sync, and the `videos://` deep links (direct link and search fallback).

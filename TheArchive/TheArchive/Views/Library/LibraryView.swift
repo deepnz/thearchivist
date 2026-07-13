@@ -12,6 +12,10 @@ struct LibraryView: View {
             ZStack(alignment: .top) {
                 ArchiveTheme.background.ignoresSafeArea()
 
+                // Filter + sort once per render — statsBar, the empty check,
+                // and the grid all share this result.
+                let filtered = libraryVM.filteredItems
+
                 VStack(spacing: 0) {
                     // Toolbar
                     toolbar
@@ -22,7 +26,7 @@ struct LibraryView: View {
                         .padding(.vertical, 10)
 
                     // Stats bar
-                    statsBar
+                    statsBar(for: filtered)
 
                     // Offline banner
                     if libraryVM.isOffline {
@@ -36,16 +40,16 @@ struct LibraryView: View {
                             .progressViewStyle(.circular)
                             .tint(ArchiveTheme.accent)
                         Spacer()
-                    } else if libraryVM.filteredItems.isEmpty {
+                    } else if filtered.isEmpty {
                         emptyState
                     } else {
                         ScrollView {
                             LazyVGrid(columns: columns, spacing: 24) {
-                                ForEach(libraryVM.filteredItems) { item in
+                                ForEach(filtered) { item in
                                     NavigationLink(value: item) {
                                         PosterCardView(item: item)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.card)
                                 }
                             }
                             .padding(40)
@@ -107,11 +111,11 @@ struct LibraryView: View {
         .padding(.vertical, 16)
     }
 
-    private var statsBar: some View {
+    private func statsBar(for items: [LibraryItem]) -> some View {
         HStack(spacing: 24) {
-            statItem(value: "\(libraryVM.filteredItems.filter { $0.type == .film }.count)", label: "FILMS")
-            statItem(value: "\(libraryVM.filteredItems.filter { $0.type == .series }.count)", label: "SERIES")
-            statItem(value: "\(libraryVM.filteredItems.count)", label: "TOTAL")
+            statItem(value: "\(items.filter { $0.type == .film }.count)", label: "FILMS")
+            statItem(value: "\(items.filter { $0.type == .series }.count)", label: "SERIES")
+            statItem(value: "\(items.count)", label: "TOTAL")
         }
         .padding(.horizontal, 40)
         .padding(.vertical, 8)

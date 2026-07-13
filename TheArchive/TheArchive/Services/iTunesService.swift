@@ -3,7 +3,14 @@ import Foundation
 enum iTunesService {
     private static let base = "https://itunes.apple.com/search"
 
-    static func searchURL(query: String) -> URL? {
+    /// The user's App Store storefront country (ISO 3166-1 alpha-2, lowercased).
+    /// Searching the right storefront ensures result IDs and store URLs
+    /// resolve in the user's own Apple TV app.
+    static var storefrontCountry: String {
+        Locale.current.region?.identifier.lowercased() ?? "us"
+    }
+
+    static func searchURL(query: String, country: String = iTunesService.storefrontCountry) -> URL? {
         var components = URLComponents(string: base)
         // media=all with entity=movie,tvSeason returns both films and TV collections.
         // Do NOT use media=movie here — it suppresses TV results.
@@ -11,6 +18,7 @@ enum iTunesService {
             URLQueryItem(name: "term", value: query),
             URLQueryItem(name: "media", value: "all"),
             URLQueryItem(name: "entity", value: "movie,tvSeason"),
+            URLQueryItem(name: "country", value: country),
             URLQueryItem(name: "limit", value: "25"),
         ]
         return components?.url

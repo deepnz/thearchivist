@@ -1,6 +1,6 @@
 # The Archive — Build Progress
 
-Last updated: 2026-03-23
+Last updated: 2026-07-13
 
 ---
 
@@ -10,146 +10,121 @@ Last updated: 2026-03-23
 |---|---|
 | Project setup | ✅ Done |
 | Core code (Tasks 2–14) | ✅ Done |
+| Launch-readiness hardening (see below) | ✅ Code complete — needs Xcode build/test run |
 | CloudKit schema | ⏳ Manual step |
 | Device testing | ⏳ Manual step |
-| App Store prep | ⏳ Manual step |
+| App Store prep | ⏳ Screenshots + submission remain |
 
 ---
 
-## Task Checklist
+## Launch-readiness hardening (2026-07-13)
 
-### ✅ Task 1 — Xcode Project Setup
-- Project created (tvOS 17+, SwiftUI, CloudKit + Sign in with Apple capabilities)
-- Fonts added: PlayfairDisplay-Regular, PlayfairDisplay-Italic, CourierPrime-Regular, CourierPrime-Bold, CourierPrime-Italic
-- Info.plist configured (UIAppFonts, NSiCloudUsageDescription)
-- PrivacyInfo.xcprivacy created
-- Test target added
+A full code review pass for App Store launch. All changes are code-complete;
+**they were authored in an environment without Xcode/tvOS SDK, so the
+build + unit-test run below is the first required step on a Mac.**
 
-> **Note:** PlayfairDisplay Bold and BoldItalic variants are not present. `ArchiveTheme.titleFont` uses PlayfairDisplay-Italic instead.
+### On-device storage (new)
+- `Services/LocalStore.swift` — JSON snapshot of the entire library in the
+  Caches directory (the only persistent-ish writable location on tvOS;
+  purge-safe because CloudKit holds the durable copy).
+- `Services/DataStore.swift` — local-first repository. All view mutations go
+  through it: view models update instantly, snapshot persists to disk, a
+  pending-op queue syncs to CloudKit in the background and retries on
+  reconnect / foreground / next launch. Launch is cache-first (instant
+  library, no spinner unless truly empty), then reconciles with CloudKit
+  ("server wins except locally-pending records" — `DataStore.merge`).
+- Sign-out (or credential revocation) wipes local data and queued writes.
 
----
+### App Review blockers removed
+- Deleted the forced `auth.isSignedIn = true` simulator bypass and the
+  hardcoded mock library from `TheArchiveApp.swift` (2.1 placeholder-content
+  rejection; also made sign-in unusable).
+- Created real tvOS brand assets: `App Icon & Top Shelf Image.brandassets`
+  (layered App Store 1280×768 + 400×240/800×480 icons, Top Shelf
+  1920×720/3840×1440 and Wide 2320×720/4640×1440) and
+  `LaunchImage.launchimage` (1920×1080, 3840×2160), generated from the
+  bundled Playfair/Courier fonts and app palette. Build settings updated
+  (`ASSETCATALOG_COMPILER_APPICON_NAME`, `ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME`).
+  The empty iOS-style `AppIcon.appiconset` was removed.
+- `Info.plist`: added `UIUserInterfaceStyle = Dark` to match the app's forced
+  dark scheme.
 
-### ✅ Task 2 — Theme System
-- `TheArchive/Theme/ArchiveTheme.swift`
-- Color tokens: background, surface, accent (gold), accent2 (crimson), textPrimary, textMuted, border
-- Typography helpers: `titleFont`, `bodyFont`, `monoFont`
-- `posterGradient(for:)` — deterministic gradient fallback from title hash
-- `Color(hex:)` extension
+### Deep links now point at the exact title
+- `iTunesResult` captures `trackViewUrl` / `collectionViewUrl`; new
+  `LibraryItem.storeURL` field persists it (additive CloudKit schema change).
+- `Services/AppleTVLink.swift` builds the open URL: canonical store URL with
+  scheme swapped to `videos://` (host-validated) → constructed
+  `videos://itunes.apple.com/{country}/movie|tv-season/id{id}` for legacy
+  records → TV-app search by title as last resort. The detail sheet tries
+  each in order before showing an error alert.
+- iTunes searches now pass `country=` (user's storefront) so IDs and URLs
+  resolve in the user's own store.
 
----
+### Sync & auth robustness
+- `saveItem`/`saveWatchlist` recover from `serverRecordChanged` by re-applying
+  fields to the server record (previously: silent data loss after any cache
+  reload or cross-device edit).
+- Deletes tolerate `unknownItem` (offline add-then-remove can't zombie).
+- `nextCatalogID` retries only on genuine CAS conflicts and fails fast to
+  `MV-????` offline (previously ~3.5 s of pointless retries).
+- Credential check on foreground signs out only on `.revoked`/`.notFound`;
+  transient errors (no network) no longer log the user out.
+- Unused `itemExists` CloudKit query removed — the duplicate check is local,
+  so the `iTunesID` queryable index is no longer required.
 
-### ✅ Task 3 — Data Models
-- `TheArchive/Models/LibraryItem.swift` — CKRecord round-trip, `MediaType` enum
-- `TheArchive/Models/Watchlist.swift` — CKRecord round-trip
-- `TheArchive/Models/iTunesResult.swift` — Decodable from iTunes Search API JSON
-- `TheArchiveTests/ModelTests.swift` — 3 tests
+### Performance
+- `URLCache.shared` enlarged (32 MB memory / 256 MB disk) for poster artwork.
+- `LibraryView` computes the filtered/sorted list once per render (was 5×).
+- Poster grids use tvOS `.card` button style for the native focus treatment.
 
----
-
-### ✅ Task 4 — iTunes Service
-- `TheArchive/Services/iTunesService.swift` — `searchURL(query:)`, `search(query:)` async
-- `TheArchiveTests/iTunesServiceTests.swift` — URL building, space encoding, JSON decode
-
----
-
-### ✅ Task 5 — Auth Service
-- `TheArchive/Services/AuthService.swift`
-- `@MainActor` ObservableObject, Sign in with Apple credential management
-- `checkCredentialState()`, `handleAuthorization()`, `signOut()`
-
----
-
-### ✅ Task 6 — CloudKit Service
-- `TheArchive/Services/CloudKitService.swift`
-- Container ID: `iCloud.com.deepak.TheArchive` ← **update if your bundle ID differs**
-- CRUD: `fetchAllItems`, `saveItem`, `deleteItem`, `itemExists`
-- `nextCatalogID(type:)` with CAS retry + exponential backoff
-- Watchlist CRUD
-- `TheArchiveTests/CloudKitServiceTests.swift` — 4 tests (static helpers only, no network)
-
----
-
-### ✅ Task 7 — ViewModels
-- `TheArchive/ViewModels/LibraryViewModel.swift` — filter, sort, genre pills, NWPathMonitor
-- `TheArchive/ViewModels/SearchViewModel.swift` — iTunes search, error handling
-- `TheArchive/ViewModels/WatchlistViewModel.swift` — watchlist CRUD, stale pruning
-- `TheArchiveTests/LibraryViewModelTests.swift` — 5 tests
-- `TheArchiveTests/SearchViewModelTests.swift` — 2 tests
-
----
-
-### ✅ Task 8 — Sign In View
-- `TheArchive/Views/Auth/SignInView.swift`
-- Gold "The Archive" title + Sign in with Apple button
-
----
-
-### ✅ Task 9 — Poster Card & Genre Pills
-- `TheArchive/Views/Library/PosterCardView.swift` — AsyncImage with gradient fallback, catalog badge
-- `TheArchive/Views/Library/GenrePillsView.swift` — horizontal scroll, active/inactive states
-
----
-
-### ✅ Task 10 — Library View
-- `TheArchive/Views/Library/LibraryView.swift`
-- Poster grid, type filter picker, sort menu, stats bar (films/series/total), offline banner, empty state
+### Tests (all network-free)
+- `ModelTests` — CKRecord round-trips incl. `storeURL` + legacy records,
+  changeTag record reuse, Codable round-trips.
+- `iTunesServiceTests` — URL building incl. `country=`, film + tvSeason
+  fixtures incl. store URLs.
+- `AppleTVLinkTests` (new) — scheme swap, host validation, legacy fallback,
+  search fallback encoding.
+- `LocalStoreTests` (new) — snapshot round-trip, overwrite, clear, corrupt file.
+- `DataStoreTests` (new) — merge policy (server wins / pending wins / offline
+  add / offline delete).
+- `CloudKitServiceTests`, `LibraryViewModelTests`, `SearchViewModelTests` — unchanged.
 
 ---
 
-### ✅ Task 11 — Detail Sheet View
-- `TheArchive/Views/Library/DetailSheetView.swift`
-- Genre chips (predefined + custom), watchlist chips, watched toggle
-- "Open in Apple TV" deep link (`videos://itunes.apple.com/...`)
-- Remove from library with confirmation
-- `FlowLayout` custom wrapping layout for chips
+## Task Checklist (original build)
 
----
+Tasks 1–14 (project setup through app entry point): ✅ done — see git history.
 
-### ✅ Task 12 — Search View
-- `TheArchive/Views/Search/SearchView.swift`
-- iTunes search bar, results grid, duplicate detection, confirm-add alert
+### ⏳ Task 15 — Verify hardening pass in Xcode *(manual — requires Mac)*
+- [ ] `Cmd+B` — build the app target
+- [ ] `Cmd+U` — run TheArchiveTests (all suites are network-free)
+- [ ] Verify asset catalog compiles (brand assets + launch image)
 
----
+### ⏳ Task 16 — CloudKit Schema *(manual — requires Xcode + iCloud account)*
+- [ ] Run app on device/simulator signed into iCloud → first write auto-creates
+      record types in the dev environment: `LibraryItem` (now incl. `storeURL`),
+      `Watchlist`, `LibraryCounter`
+- [ ] In [CloudKit Dashboard](https://icloud.developer.apple.com/dashboard):
+      confirm record types; promote schema to production before submission
+- [ ] (The previously-listed `iTunesID` queryable index is no longer needed)
 
-### ✅ Task 13 — Watchlists View
-- `TheArchive/Views/Watchlists/WatchlistsView.swift`
-- `NavigationSplitView` sidebar + detail grid
-- Create / rename / delete watchlists via context menu + alerts
-
----
-
-### ✅ Task 14 — App Entry Point
-- `TheArchive/TheArchive/TheArchiveApp.swift`
-- All `@EnvironmentObject` wired: auth, ck, libraryVM, searchVM, watchlistVM
-- `TabView` (Library / Watchlists / Search) when signed in, `SignInView` otherwise
-- `loadData()` on appear, credential check on foreground
-- Network monitoring via `NWPathMonitor`
-
----
-
-### ⏳ Task 15 — CloudKit Schema Setup *(manual — requires Xcode + iCloud account)*
-- [ ] Run app on simulator → triggers first CloudKit write
-- [ ] In [CloudKit Dashboard](https://icloud.developer.apple.com/dashboard): confirm record types auto-created: `LibraryItem`, `Watchlist`, `LibraryCounter`
-- [ ] Add **Queryable** index on `LibraryItem.iTunesID`
-- [ ] Add **Sortable** index on `LibraryItem.dateAdded`
-
----
-
-### ⏳ Task 16 — End-to-End Device Testing *(manual — requires Apple TV or simulator)*
+### ⏳ Task 17 — End-to-End Device Testing *(manual — requires Apple TV)*
 - [ ] Sign in with Apple
-- [ ] Search + add a title
-- [ ] Detail sheet: genre chip, watched toggle, Open in Apple TV
-- [ ] Watchlist: create list, add title, verify in Watchlists tab
-- [ ] Close + reopen: verify CloudKit persistence
-- [ ] Remove from library
+- [ ] Search + add a title; kill network mid-session and verify offline
+      add/edit/delete + banner, then reconnect and verify CloudKit sync
+- [ ] Detail sheet: genre chip, watched toggle
+- [ ] **Open in Apple TV: verify the direct `videos://` store-URL link lands on
+      the exact title (film AND series); yank `storeURL` on a test record to
+      exercise the constructed-URL and search fallbacks**
+- [ ] Watchlists: create, rename, delete, add/remove titles
+- [ ] Relaunch offline: verify instant cache-first load
+- [ ] Sign out: verify local data cleared
+- [ ] Remove from library (verify watchlist pruning)
 
----
-
-### ⏳ Task 17 — App Store Submission *(manual)*
-- [ ] Create tvOS app icon set (400×240, 1280×768 top shelf, etc.)
-- [ ] Version 1.0, Build 1
-- [ ] Archive + validate
-- [ ] Screenshots
+### ⏳ Task 18 — App Store Submission *(manual)*
+- [ ] Version 1.0, Build 1 — archive + validate (asset validation now has real
+      brand assets to check)
+- [ ] Screenshots (1920×1080)
 - [ ] Submit via App Store Connect
 
 ---
@@ -157,43 +132,20 @@ Last updated: 2026-03-23
 ## Build Status
 
 ```
-xcodebuild build -target TheArchive -target TheArchiveTests \
-  -sdk appletvsimulator26.2 -configuration Debug
-
-→ BUILD SUCCEEDED (2026-03-23)
+Last verified Xcode build: 2026-03-23 (BUILD SUCCEEDED), prior to the
+2026-07-13 hardening pass. The hardening pass was authored without access
+to Xcode — run Cmd+B / Cmd+U first.
 ```
 
-**Known issue:** `xcodebuild test` via scheme fails because Xcode reports "tvOS 26.2 not installed" even though the SDK and simulator (tvOS 26.1) are present. This is a version string mismatch between the installed SDK (`26.2`) and simulator runtime (`26.1`). **Tests can be run from Xcode directly** (Cmd+U) without issue.
+**Known issue:** `xcodebuild test` via scheme fails because Xcode reports
+"tvOS 26.2 not installed" even though the SDK and simulator (tvOS 26.1) are
+present — a version string mismatch. **Tests run fine from Xcode (Cmd+U).**
 
----
+## Running in the simulator
 
-## Can I test the app right now?
-
-**Yes, from Xcode** — see below. **No, from command line** — simulator/SDK version mismatch blocks `xcodebuild test`.
-
-### Steps to run in simulator:
-1. Open `TheArchive/TheArchive.xcodeproj` in Xcode
-2. Select **Apple TV 4K (3rd generation)** simulator as destination
-3. **Cmd+R** to build and run
-4. App will show the Sign In screen
-
-> **Important before running:** Sign in with Apple doesn't work in the simulator. You'll see the sign-in button but it will fail silently. To bypass for testing:
-
-### Quick simulator bypass (temporary):
-In `TheArchiveApp.swift`, temporarily force `isSignedIn = true`:
-```swift
-// TEMP: bypass sign-in for simulator testing
-.onAppear { auth.isSignedIn = true }
-```
-Add this to the root `Group` in `body`. Remove before shipping.
-
-### To run unit tests:
-- **Cmd+U** in Xcode (select TheArchiveTests target)
-- Tests that pass without network/CloudKit: ModelTests, CloudKitServiceTests, LibraryViewModelTests, SearchViewModelTests
-- iTunesServiceTests: URL building passes; `search()` network test requires connectivity
-
-### For real device testing (Task 16):
-- Requires a real Apple TV 4K or Apple TV HD
-- Sign in with Apple works on device
-- CloudKit requires iCloud sign-in on the device
-- Complete Task 15 (CloudKit schema) first
+1. Open `TheArchive/TheArchive.xcodeproj`, select an Apple TV simulator, Cmd+R.
+2. Sign in with Apple does not work in the simulator. For UI-only testing you
+   can temporarily set `auth.isSignedIn = true` in `TheArchiveApp` —
+   **do not commit that change.** CloudKit still requires an iCloud account;
+   without one the app now runs from the local snapshot (empty on first
+   launch) instead of mock data.

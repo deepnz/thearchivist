@@ -12,7 +12,7 @@ final class SearchViewModel: ObservableObject {
         existingIDs.contains(iTunesID)
     }
 
-    func search(existingIDs: Set<String>) async {
+    func search() async {
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         isSearching = true
         errorMessage = nil

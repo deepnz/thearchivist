@@ -10,7 +10,7 @@ struct DetailSheetView: View {
     let item: LibraryItem
     @EnvironmentObject var libraryVM: LibraryViewModel
     @EnvironmentObject var watchlistVM: WatchlistViewModel
-    @EnvironmentObject var ck: CloudKitService
+    @EnvironmentObject var dataStore: DataStore
     @Environment(\.dismiss) var dismiss
 
     @State private var currentItem: LibraryItem
@@ -200,8 +200,7 @@ struct DetailSheetView: View {
             updated.genres.append(genre)
         }
         currentItem = updated
-        Task { try? await ck.saveItem(updated) }
-        updateLibraryVM(updated)
+        dataStore.saveItem(updated)
     }
 
     private func addCustomGenre() {
@@ -211,16 +210,14 @@ struct DetailSheetView: View {
         updated.genres.append(val)
         currentItem = updated
         customGenreInput = ""
-        Task { try? await ck.saveItem(updated) }
-        updateLibraryVM(updated)
+        dataStore.saveItem(updated)
     }
 
     private func toggleWatched() {
         var updated = currentItem
         updated.watched.toggle()
         currentItem = updated
-        Task { try? await ck.saveItem(updated) }
-        updateLibraryVM(updated)
+        dataStore.saveItem(updated)
     }
 
     private func toggleWatchlist(_ list: Watchlist) {
@@ -231,35 +228,26 @@ struct DetailSheetView: View {
         } else {
             updated.itemIDs.append(currentItem.iTunesID)
         }
-        watchlistVM.watchlists[idx] = updated
-        Task { try? await ck.saveWatchlist(updated) }
+        dataStore.saveWatchlist(updated)
     }
 
     private func removeItem() {
-        Task {
-            try? await ck.deleteItem(currentItem)
-            // Prune from all watchlists
-            let liveIDs = Set(libraryVM.items.map(\.iTunesID)).subtracting([currentItem.iTunesID])
-            await watchlistVM.pruneStale(liveITunesIDs: liveIDs, using: ck)
-            libraryVM.items.removeAll { $0.id == currentItem.id }
-            await MainActor.run { dismiss() }
-        }
+        dataStore.deleteItem(currentItem)
+        dismiss()
     }
 
     private func openInAppleTV() {
-        let urlString = currentItem.type == .film
-            ? "videos://itunes.apple.com/movie?id=\(currentItem.iTunesID)"
-            : "videos://itunes.apple.com/show?id=\(currentItem.iTunesID)"
-        guard let url = URL(string: urlString) else { return }
-        Task {
-            let success = await UIApplication.shared.open(url)
-            if !success { showOpenError = true }
+        guard let url = AppleTVLink.directURL(for: currentItem) else {
+            showOpenError = true
+            return
         }
-    }
-
-    private func updateLibraryVM(_ updated: LibraryItem) {
-        if let idx = libraryVM.items.firstIndex(where: { $0.id == updated.id }) {
-            libraryVM.items[idx] = updated
+        Task {
+            if await UIApplication.shared.open(url) { return }
+            // The direct link couldn't be handled — fall back to a TV-app
+            // search for the title so the user still lands on the content.
+            if let fallback = AppleTVLink.searchURL(for: currentItem.title),
+               await UIApplication.shared.open(fallback) { return }
+            showOpenError = true
         }
     }
 }

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SpeakCoach — your public speaking practice room</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
+</head>
+<body>
+  <header class="site-header">
+    <h1>Speak<span class="accent">Coach</span></h1>
+    <p class="tagline">Your practice room for public speaking</p>
+    <nav>
+      <button id="nav-practice" class="nav-btn active">Practice</button>
+      <button id="nav-history" class="nav-btn">History</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Setup -->
+    <section id="view-setup" class="view">
+      <div class="card">
+        <h2>Set up your session</h2>
+        <div class="field-row">
+          <label class="field-label">Mode</label>
+          <div class="segmented" id="mode-picker">
+            <button data-mode="free" class="active">Free talk</button>
+            <button data-mode="impromptu">Impromptu topic</button>
+          </div>
+        </div>
+        <div class="field-row">
+          <label class="field-label">Target length</label>
+          <div class="segmented" id="duration-picker">
+            <button data-seconds="60">1 min</button>
+            <button data-seconds="120" class="active">2 min</button>
+            <button data-seconds="300">5 min</button>
+          </div>
+        </div>
+        <div id="topic-card" class="topic-card hidden">
+          <p id="topic-text"></p>
+          <button id="shuffle-topic" class="ghost-btn">↻ Shuffle topic</button>
+        </div>
+        <button id="start-btn" class="primary-btn">● Start recording</button>
+        <div id="unsupported" class="hidden">
+          <p class="notice">Live transcription isn't supported in this browser (try Chrome, Edge, or Safari).
+            You can still paste or type a transcript below and analyze it.</p>
+          <textarea id="manual-transcript" rows="6" placeholder="Paste or type what you said…"></textarea>
+          <div class="field-row">
+            <label class="field-label" for="manual-duration">How long did you speak? (seconds)</label>
+            <input type="number" id="manual-duration" min="5" value="120">
+          </div>
+          <button id="analyze-manual-btn" class="primary-btn">Analyze transcript</button>
+        </div>
+        <p class="fine-print">Everything runs in your browser. Nothing is uploaded unless you ask for AI coaching.</p>
+      </div>
+    </section>
+
+    <!-- Recording -->
+    <section id="view-recording" class="view hidden">
+      <div class="card recording-card">
+        <div class="rec-indicator"><span class="pulse"></span> Recording</div>
+        <div id="timer" class="timer">0:00</div>
+        <p id="recording-topic" class="recording-topic hidden"></p>
+        <div id="live-transcript" class="live-transcript" aria-live="polite">
+          <span class="placeholder">Start speaking — your words will appear here…</span>
+        </div>
+        <button id="stop-btn" class="primary-btn stop">■ Stop &amp; analyze</button>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section id="view-results" class="view hidden">
+      <div class="card">
+        <h2>Session results</h2>
+        <div class="stat-grid" id="stat-grid"></div>
+        <div id="filler-chips" class="filler-chips"></div>
+        <h3>Coaching notes</h3>
+        <ul id="tips-list" class="tips-list"></ul>
+        <details class="transcript-details">
+          <summary>Transcript</summary>
+          <p id="result-transcript"></p>
+        </details>
+
+        <div class="ai-panel">
+          <h3>AI coaching <span class="badge">Claude</span></h3>
+          <div id="ai-setup">
+            <p class="fine-print">Uses your own Anthropic API key, stored only in this browser and sent only to api.anthropic.com.</p>
+            <div class="key-row">
+              <input type="password" id="api-key-input" placeholder="sk-ant-…" autocomplete="off">
+              <button id="get-coaching-btn" class="primary-btn small">Get AI coaching</button>
+            </div>
+          </div>
+          <div id="ai-output" class="ai-output hidden"></div>
+        </div>
+
+        <button id="again-btn" class="primary-btn">Practice again</button>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section id="view-history" class="view hidden">
+      <div class="card">
+        <h2>Your progress</h2>
+        <div id="history-empty" class="hidden"><p>No sessions yet — go practice!</p></div>
+        <table id="history-table" class="history-table hidden">
+          <thead>
+            <tr><th>When</th><th>Mode</th><th>Length</th><th>WPM</th><th>Fillers/min</th><th>Score</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <button id="clear-history-btn" class="ghost-btn danger hidden">Clear history</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>SpeakCoach · fully client-side · <a href="https://github.com/deepnz" target="_blank" rel="noopener">deepnz</a></p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

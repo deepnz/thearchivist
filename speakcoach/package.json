@@ -1,0 +1,11 @@
+{
+  "name": "speakcoach",
+  "version": "1.0.0",
+  "description": "A practice room for public speaking — record, transcribe, and get pacing/filler feedback plus optional Claude coaching.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/analysis.test.mjs",
+    "start": "npx serve ."
+  },
+  "license": "MIT"
+}

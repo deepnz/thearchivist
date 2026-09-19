@@ -28,27 +28,40 @@ struct DetailSheetView: View {
             ArchiveTheme.background.ignoresSafeArea()
 
             HStack(alignment: .top, spacing: 60) {
-                // Poster
-                PosterCardView(item: currentItem)
+                // Poster, without the overlaid title/catalog/genre chrome that
+                // the slate header beside it already shows.
+                PosterCardView(item: currentItem, showsOverlayChrome: false)
 
                 // Details
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        // Title + meta
-                        VStack(alignment: .leading, spacing: 6) {
+                        // Modal slate header — barbershop stripe + catalog marker + title + gold underline
+                        VStack(alignment: .leading, spacing: 10) {
+                            BarbershopStripe()
+                            HStack(spacing: 10) {
+                                Text("▶")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(ArchiveTheme.accent2)
+                                Text(currentItem.catalogID)
+                                    .font(ArchiveTheme.monoFont(size: 13))
+                                    .foregroundColor(ArchiveTheme.accent)
+                                    .kerning(3)
+                            }
                             Text(currentItem.title)
                                 .font(ArchiveTheme.titleFont(size: 42))
                                 .foregroundColor(ArchiveTheme.textPrimary)
-                            Text("\(currentItem.year) · \(currentItem.type == .film ? "Motion Picture" : "Television Series")")
-                                .font(ArchiveTheme.monoFont(size: 16))
+                            Rectangle()
+                                .fill(ArchiveTheme.accent)
+                                .frame(width: 64, height: 2)
+                            Text("\(currentItem.yearText) · \(currentItem.type == .film ? "Motion Picture" : "Television Series")")
+                                .font(ArchiveTheme.monoFont(size: 14))
                                 .foregroundColor(ArchiveTheme.textMuted)
-                            Text(currentItem.catalogID)
-                                .font(ArchiveTheme.monoFont(size: 13))
-                                .foregroundColor(ArchiveTheme.textMuted)
+                                .kerning(2)
                                 .padding(.top, 2)
                         }
+                        .padding(.top, 4)
 
-                        divider
+                        PerforationStrip()
 
                         // Genre chips
                         genreSection
@@ -110,9 +123,7 @@ struct DetailSheetView: View {
     // MARK: - Subviews
 
     private var divider: some View {
-        Rectangle()
-            .fill(ArchiveTheme.border)
-            .frame(height: 1)
+        FilmStripDivider()
     }
 
     private var genreSection: some View {

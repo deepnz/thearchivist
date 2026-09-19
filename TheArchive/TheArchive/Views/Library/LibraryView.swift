@@ -146,11 +146,12 @@ struct LibraryView: View {
         VStack(spacing: 16) {
             Spacer()
             Text("Nothing here yet")
-                .font(ArchiveTheme.titleFont(size: 32))
-                .foregroundColor(ArchiveTheme.textMuted)
+                .font(ArchiveTheme.titleFont(size: 40))
+                .foregroundColor(ArchiveTheme.border)
             Text("Head to Search to add your first title.")
-                .font(ArchiveTheme.monoFont(size: 18))
+                .font(ArchiveTheme.monoFont(size: 14))
                 .foregroundColor(ArchiveTheme.textMuted)
+                .kerning(3)
             Spacer()
         }
     }

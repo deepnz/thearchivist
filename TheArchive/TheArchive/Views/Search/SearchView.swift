@@ -88,7 +88,7 @@ struct SearchView: View {
                     .font(ArchiveTheme.bodyFont(size: 16))
                     .foregroundColor(ArchiveTheme.textPrimary)
                     .lineLimit(2)
-                Text(result.type == .film ? "\(result.year) · FILM" : "SERIES · \(result.year)")
+                Text(result.type == .film ? "\(result.yearText) · FILM" : "SERIES · \(result.yearText)")
                     .font(ArchiveTheme.monoFont(size: 12))
                     .foregroundColor(ArchiveTheme.textMuted)
             }

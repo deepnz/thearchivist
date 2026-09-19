@@ -11,6 +11,10 @@ struct iTunesResult: Identifiable, Decodable {
     let type: MediaType
     let artworkURL: String   // 600x900bb substituted
 
+    /// Year as a bare 4-digit string, for use in `Text`.
+    /// See `LibraryItem.yearText` for why this is needed.
+    var yearText: String { String(year) }
+
     private enum CodingKeys: String, CodingKey {
         case trackId, collectionId, trackName, collectionName
         case releaseDate, wrapperType, kind

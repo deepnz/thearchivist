@@ -23,6 +23,9 @@ enum ArchiveTheme {
         .custom("CourierPrime-Regular", size: size)
     }
 
+    // MARK: - Card background (from archive.html --card-bg)
+    static let cardBg = Color(hex: "#1a1510")
+
     // MARK: - Poster gradient fallback
     // Deterministic gradient from title hash — matches archive.html system
     static func posterGradient(for title: String) -> LinearGradient {

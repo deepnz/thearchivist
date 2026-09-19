@@ -20,6 +20,15 @@ struct LibraryItem: Identifiable, Hashable {
     // Preserved so updates retain the server changeTag
     var ckRecord: CKRecord?
 
+    /// Year as a bare 4-digit string, for use in `Text`.
+    ///
+    /// A string containing interpolation binds to `Text`'s `LocalizedStringKey`
+    /// overload, which formats interpolated numbers with locale grouping and
+    /// renders 1954 as "1,954". Converting to String first selects the
+    /// `Text(String)` overload, which does no formatting. The same applies to a
+    /// ternary of such strings, so both shapes need this.
+    var yearText: String { String(year) }
+
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
     static func == (lhs: LibraryItem, rhs: LibraryItem) -> Bool { lhs.id == rhs.id }
 

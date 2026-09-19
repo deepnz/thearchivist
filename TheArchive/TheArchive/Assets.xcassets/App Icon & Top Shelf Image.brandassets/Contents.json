@@ -1,47 +1,23 @@
 {
   "assets" : [
     {
-      "filename" : "App Icon - Small.png",
+      "filename" : "App Icon - Small.imagestack",
       "idiom" : "tv",
       "role" : "primary-app-icon",
       "size" : "400x240"
     },
     {
-      "filename" : "App Icon - Small@2x.png",
-      "idiom" : "tv",
-      "role" : "primary-app-icon",
-      "scale" : "2x",
-      "size" : "400x240"
-    },
-    {
-      "filename" : "App Icon - Large.png",
+      "filename" : "App Icon - Large.imagestack",
       "idiom" : "tv",
       "role" : "primary-app-icon",
       "size" : "1280x768"
     },
     {
-      "filename" : "App Icon - Large@2x.png",
-      "idiom" : "tv",
-      "role" : "primary-app-icon",
-      "scale" : "2x",
-      "size" : "1280x768"
-    },
-    {
-      "filename" : "Top Shelf Image Wide.png",
+      "filename" : "Top Shelf Image Wide.imageset",
       "idiom" : "tv",
       "role" : "top-shelf-image-wide",
-      "size" : "1920x720"
-    },
-    {
-      "filename" : "Top Shelf Image Wide@2x.png",
-      "idiom" : "tv",
-      "role" : "top-shelf-image-wide",
-      "scale" : "2x",
       "size" : "1920x720"
     }
   ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
-  }
+  "info" : { "author" : "xcode", "version" : 1 }
 }

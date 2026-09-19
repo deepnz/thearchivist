@@ -1,0 +1,8 @@
+{
+  "info" : { "author" : "xcode", "version" : 1 },
+  "layers" : [
+    { "filename" : "Mark.imagestacklayer" },
+    { "filename" : "Border.imagestacklayer" },
+    { "filename" : "Background.imagestacklayer" }
+  ]
+}

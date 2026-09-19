@@ -13,6 +13,9 @@ struct WatchlistsView: View {
 
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
+    /// Wide enough for the longest expected list name at 18pt Courier Prime.
+    private let sidebarWidth: CGFloat = 420
+
     var body: some View {
         ZStack {
             ArchiveTheme.background.ignoresSafeArea()
@@ -39,68 +42,23 @@ struct WatchlistsView: View {
                     }
                 }
             } else {
-                NavigationSplitView {
-                    ZStack {
-                        ArchiveTheme.surface.ignoresSafeArea()
-                        VStack(alignment: .leading, spacing: 0) {
-                            Button {
-                                showNewListInput = true
-                            } label: {
-                                Label("New List", systemImage: "plus")
-                                    .font(ArchiveTheme.monoFont(size: 16))
-                                    .foregroundColor(ArchiveTheme.accent)
-                            }
-                            .padding(20)
-
-                            Divider().background(ArchiveTheme.border)
-
-                            List(watchlistVM.watchlists, selection: $watchlistVM.selectedListID) { list in
-                                Text(list.name)
-                                    .font(ArchiveTheme.bodyFont(size: 18))
-                                    .foregroundColor(watchlistVM.selectedListID == list.id ? ArchiveTheme.accent : ArchiveTheme.textPrimary)
-                                    .tag(list.id)
-                                    .contextMenu {
-                                        Button("Rename") {
-                                            listToRename = list
-                                            renameText = list.name
-                                        }
-                                        Button("Delete", role: .destructive) {
-                                            listToDelete = list
-                                        }
-                                    }
-                            }
-                            .listStyle(.plain)
+                // An explicit HStack rather than NavigationSplitView. The split
+                // view laid the detail grid out against the full screen width
+                // instead of the detail column, so the first poster column
+                // rendered underneath the sidebar. Fixed widths make the
+                // geometry unambiguous.
+                NavigationStack {
+                    HStack(spacing: 0) {
+                        sidebar
+                            .frame(width: sidebarWidth)
                             .background(ArchiveTheme.surface)
-                        }
-                    }
-                } detail: {
-                    ZStack {
-                        ArchiveTheme.background.ignoresSafeArea()
-                        if let list = watchlistVM.selectedList {
-                            let items = libraryVM.items.filter { list.itemIDs.contains($0.iTunesID) }
-                            if items.isEmpty {
-                                Text("No titles in this list yet.\nAdd them from the Library.")
-                                    .font(ArchiveTheme.monoFont(size: 18))
-                                    .foregroundColor(ArchiveTheme.textMuted)
-                                    .multilineTextAlignment(.center)
-                            } else {
-                                ScrollView {
-                                    LazyVGrid(columns: columns, spacing: 24) {
-                                        ForEach(items) { item in
-                                            NavigationLink(value: item) {
-                                                PosterCardView(item: item)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                    .padding(40)
-                                }
-                            }
-                        } else {
-                            Text("Select a list")
-                                .font(ArchiveTheme.monoFont(size: 18))
-                                .foregroundColor(ArchiveTheme.textMuted)
-                        }
+
+                        Rectangle()
+                            .fill(ArchiveTheme.border)
+                            .frame(width: 1)
+
+                        detailPane
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .navigationDestination(for: LibraryItem.self) { item in
                         DetailSheetView(item: item)
@@ -125,6 +83,95 @@ struct WatchlistsView: View {
             Text("Delete \"\(listToDelete?.name ?? "")\"? This cannot be undone.")
         }
     }
+
+    // MARK: - Panes
+
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                showNewListInput = true
+            } label: {
+                Label("New List", systemImage: "plus")
+                    .font(ArchiveTheme.monoFont(size: 16))
+                    .foregroundColor(ArchiveTheme.accent)
+            }
+            .padding(20)
+
+            Rectangle()
+                .fill(ArchiveTheme.border)
+                .frame(height: 1)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(watchlistVM.watchlists) { list in
+                        // A plain Button rather than List selection: outside a
+                        // split view, List's selection binding does not drive
+                        // the detail pane on tvOS.
+                        Button {
+                            watchlistVM.selectedListID = list.id
+                        } label: {
+                            Text(list.name)
+                                .font(ArchiveTheme.bodyFont(size: 18))
+                                .foregroundColor(watchlistVM.selectedListID == list.id
+                                                 ? ArchiveTheme.accent
+                                                 : ArchiveTheme.textPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 14)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Rename") {
+                                listToRename = list
+                                renameText = list.name
+                            }
+                            Button("Delete", role: .destructive) {
+                                listToDelete = list
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private var detailPane: some View {
+        Group {
+            if let list = watchlistVM.selectedList {
+                let items = libraryVM.items.filter { list.itemIDs.contains($0.iTunesID) }
+                if items.isEmpty {
+                    Text("No titles in this list yet.\nAdd them from the Library.")
+                        .font(ArchiveTheme.monoFont(size: 18))
+                        .foregroundColor(ArchiveTheme.textMuted)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                            ForEach(items) { item in
+                                NavigationLink(value: item) {
+                                    PosterCardView(item: item)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(40)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            } else {
+                Text("Select a list")
+                    .font(ArchiveTheme.monoFont(size: 18))
+                    .foregroundColor(ArchiveTheme.textMuted)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    // MARK: - Actions
 
     private func createList() {
         let name = newListName.trimmingCharacters(in: .whitespaces)

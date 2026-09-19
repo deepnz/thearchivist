@@ -14,6 +14,12 @@ final class AuthService: NSObject, ObservableObject {
         super.init()
         userID = Self.keychainRead(service: keychainService, account: keychainAccount)
         isSignedIn = userID != nil
+
+        #if DEBUG && targetEnvironment(simulator)
+        if UIPreviewFlags.isPreviewing {
+            isSignedIn = true
+        }
+        #endif
     }
 
     // MARK: - Keychain helpers
@@ -58,6 +64,12 @@ final class AuthService: NSObject, ObservableObject {
 
     // Called on each app foreground — checks credential is still valid
     func checkCredentialState() async {
+        #if DEBUG && targetEnvironment(simulator)
+        // The preview bypass sets isSignedIn without a userID, so the guard
+        // below would sign the app back out on the first foreground.
+        if UIPreviewFlags.isPreviewing { return }
+        #endif
+
         guard let userID else {
             isSignedIn = false
             return

@@ -28,6 +28,14 @@ struct SignInView: View {
                 }
                 .frame(width: 400, height: 64)
                 .signInWithAppleButtonStyle(.white)
+
+                #if DEBUG && targetEnvironment(simulator)
+                Button("Skip Sign-In (DEBUG)") {
+                    auth.isSignedIn = true
+                }
+                .font(ArchiveTheme.monoFont(size: 16))
+                .foregroundColor(ArchiveTheme.textMuted)
+                #endif
             }
         }
     }

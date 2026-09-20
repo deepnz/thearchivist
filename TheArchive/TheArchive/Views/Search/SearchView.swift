@@ -19,6 +19,14 @@ struct SearchView: View {
         ZStack {
             ArchiveTheme.background.ignoresSafeArea()
 
+            // Branding sits behind the content, centred in the space the
+            // results grid will eventually fill. It fades out once there are
+            // results so it never competes with the posters.
+            ArchiveWordmark(titleSize: 92, taglineSize: 24, alignment: .center)
+                .opacity(searchVM.results.isEmpty ? 0.22 : 0)
+                .animation(.easeOut(duration: 0.3), value: searchVM.results.isEmpty)
+                .allowsHitTesting(false)
+
             VStack(spacing: 0) {
                 // Search bar
                 // .plain strips the tvOS default, which paints an opaque white

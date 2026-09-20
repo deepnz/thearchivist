@@ -173,8 +173,8 @@ struct ArchiveRowFocusStyle: ButtonStyle {
 // Courier tagline. Recovered from the sign-in screen, which was removed along
 // with Sign in with Apple, taking the app's only branding with it.
 struct ArchiveWordmark: View {
-    var titleSize: CGFloat = 34
-    var taglineSize: CGFloat = 12
+    var titleSize: CGFloat = 48
+    var taglineSize: CGFloat = 16
     var alignment: HorizontalAlignment = .trailing
 
     var body: some View {

@@ -20,14 +20,23 @@ struct SignInView: View {
                         .kerning(4)
                 }
 
-                // Sign in button
-                SignInWithAppleButton(.signIn) { request in
-                    request.requestedScopes = [.fullName]
-                } onCompletion: { result in
-                    auth.handleAuthorization(result: result)
+                // A plain Button driving ASAuthorizationController directly.
+                // SwiftUI's SignInWithAppleButton does not work on tvOS: the
+                // sheet flickers and dismisses, and neither callback fires.
+                Button {
+                    auth.startSignIn()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "applelogo")
+                        Text("Sign in with Apple")
+                    }
+                    .font(ArchiveTheme.bodyFont(size: 22).weight(.bold))
+                    .foregroundColor(.black)
+                    .frame(width: 400, height: 64)
+                    .background(Color.white)
+                    .cornerRadius(8)
                 }
-                .frame(width: 400, height: 64)
-                .signInWithAppleButtonStyle(.white)
+                .buttonStyle(.plain)
 
                 if let authError = auth.authError {
                     Text(authError)

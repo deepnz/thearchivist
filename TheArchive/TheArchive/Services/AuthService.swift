@@ -1,6 +1,7 @@
 import AuthenticationServices
 import Combine
 import Security
+import UIKit
 
 @MainActor
 final class AuthService: NSObject, ObservableObject {
@@ -9,6 +10,33 @@ final class AuthService: NSObject, ObservableObject {
 
     private let keychainService = "deepak-nalla.TheArchive"
     private let keychainAccount = "appleUserID"
+
+    /// Held for the duration of a request; ASAuthorizationController does not
+    /// retain itself and is deallocated mid-flight otherwise.
+    private var authController: ASAuthorizationController?
+
+    /// Starts Sign in with Apple by driving ASAuthorizationController directly.
+    ///
+    /// SwiftUI's SignInWithAppleButton is broken on tvOS: pressing it presents
+    /// a sheet that dismisses immediately and neither onRequest nor
+    /// onCompletion ever fires, so failures are completely silent. This is a
+    /// long-standing platform defect, not a configuration problem. Driving the
+    /// controller ourselves is the documented workaround.
+    func startSignIn() {
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        // tvOS has no UI for collecting a name, so requesting .fullName here
+        // asks for something the platform cannot supply. Request nothing and
+        // use the account already signed in on the device.
+        request.requestedScopes = []
+
+        let controller = ASAuthorizationController(authorizationRequests: [request])
+        controller.delegate = self
+        controller.presentationContextProvider = self
+        authController = controller
+
+        print("[Auth] performRequests()")
+        controller.performRequests()
+    }
 
     override init() {
         super.init()
@@ -129,5 +157,53 @@ final class AuthService: NSObject, ObservableObject {
         Self.keychainDelete(service: keychainService, account: keychainAccount)
         userID = nil
         isSignedIn = false
+    }
+}
+
+// MARK: - ASAuthorizationControllerDelegate
+
+extension AuthService: ASAuthorizationControllerDelegate {
+
+    nonisolated func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithAuthorization authorization: ASAuthorization
+    ) {
+        Task { @MainActor in
+            authController = nil
+            handleAuthorization(result: .success(authorization))
+        }
+    }
+
+    nonisolated func authorizationController(
+        controller: ASAuthorizationController,
+        didCompleteWithError error: Error
+    ) {
+        Task { @MainActor in
+            authController = nil
+            handleAuthorization(result: .failure(error))
+        }
+    }
+}
+
+// MARK: - ASAuthorizationControllerPresentationContextProviding
+
+extension AuthService: ASAuthorizationControllerPresentationContextProviding {
+
+    nonisolated func presentationAnchor(
+        for controller: ASAuthorizationController
+    ) -> ASPresentationAnchor {
+        // The sheet needs a concrete window to present over. Returning a
+        // detached window is what makes it dismiss immediately.
+        MainActor.assumeIsolated {
+            let scene = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .first { $0.activationState == .foregroundActive }
+            return scene?.keyWindow
+                ?? scene?.windows.first
+                ?? UIApplication.shared.connectedScenes
+                    .compactMap { ($0 as? UIWindowScene)?.windows.first }
+                    .first
+                ?? ASPresentationAnchor()
+        }
     }
 }

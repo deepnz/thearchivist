@@ -57,7 +57,15 @@ struct LibraryItem: Identifiable, Hashable {
         record[Keys.year] = year
         record[Keys.type] = type.rawValue
         record[Keys.artworkURL] = artworkURL
-        record[Keys.genres] = genres
+        // CloudKit cannot infer a list's element type from an empty array when
+        // the field does not exist yet: it rejects the save with "cannot use an
+        // empty list to initialize a new field". Omitting the key entirely is
+        // equivalent, since the decoder already defaults a missing value to [].
+        if genres.isEmpty {
+            record[Keys.genres] = nil
+        } else {
+            record[Keys.genres] = genres
+        }
         record[Keys.watched] = watched ? 1 : 0
         record[Keys.dateAdded] = dateAdded
         return record

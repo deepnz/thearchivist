@@ -258,13 +258,27 @@ struct DetailSheetView: View {
     }
 
     private func openInAppleTV() {
-        let urlString = currentItem.type == .film
-            ? "videos://itunes.apple.com/movie?id=\(currentItem.iTunesID)"
-            : "videos://itunes.apple.com/show?id=\(currentItem.iTunesID)"
-        guard let url = URL(string: urlString) else { return }
+        // The old videos:// scheme dates from when the iTunes Store was a
+        // separate app on tvOS; it no longer resolves, so the button silently
+        // did nothing. Movies and TV now live in the Apple TV app, which claims
+        // the itunes.apple.com and tv.apple.com domains via associated domains.
+        //
+        // The store URL below redirects to the modern
+        // tv.apple.com/.../umc.cmc.<opaque-id> page. That umc identifier is not
+        // derivable from the numeric iTunes ID, so linking by store URL and
+        // letting Apple resolve it is the only option that works from the ID
+        // the app stores.
+        let kind = currentItem.type == .film ? "movie" : "tv-season"
+        let candidates = [
+            "https://itunes.apple.com/us/\(kind)/id\(currentItem.iTunesID)",
+            "https://tv.apple.com/us/\(kind)/id\(currentItem.iTunesID)",
+        ].compactMap(URL.init(string:))
+
         Task {
-            let success = await UIApplication.shared.open(url)
-            if !success { showOpenError = true }
+            for url in candidates {
+                if await UIApplication.shared.open(url) { return }
+            }
+            showOpenError = true
         }
     }
 

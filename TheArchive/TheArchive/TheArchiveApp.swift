@@ -9,22 +9,28 @@ struct TheArchiveApp: App {
     @StateObject private var libraryVM = LibraryViewModel()
     @StateObject private var searchVM = SearchViewModel()
     @StateObject private var watchlistVM = WatchlistViewModel()
-    @State private var selectedTab = 0
+    /// Tag 2 is Search, which is the leftmost tab and the useful starting
+    /// point on a fresh install.
+    @State private var selectedTab = 2
 
     var body: some Scene {
         WindowGroup {
             Group {
                 if auth.isSignedIn {
+                    // Search leads: on a fresh install the library is empty, so
+                    // adding titles is the first thing anyone needs to do.
+                    // Tags stay bound to the view, not the position, so the
+                    // -uiPreviewTab screenshot flag keeps working.
                     TabView(selection: $selectedTab) {
+                        SearchView()
+                            .tabItem { Label("Search", systemImage: "magnifyingglass") }
+                            .tag(2)
                         LibraryView()
                             .tabItem { Label("Library", systemImage: "film") }
                             .tag(0)
                         WatchlistsView()
                             .tabItem { Label("Watchlists", systemImage: "list.bullet") }
                             .tag(1)
-                        SearchView()
-                            .tabItem { Label("Search", systemImage: "magnifyingglass") }
-                            .tag(2)
                     }
                     .onAppear {
                         #if DEBUG && targetEnvironment(simulator)

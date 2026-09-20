@@ -21,7 +21,13 @@ struct Watchlist: Identifiable, Hashable {
         let record = ckRecord ?? CKRecord(recordType: Self.recordType,
                                           recordID: CKRecord.ID(recordName: id))
         record[Keys.name] = name
-        record[Keys.itemIDs] = itemIDs
+        // See LibraryItem.toCKRecord: an empty array cannot initialize a new
+        // list field, and a new watchlist always starts empty.
+        if itemIDs.isEmpty {
+            record[Keys.itemIDs] = nil
+        } else {
+            record[Keys.itemIDs] = itemIDs
+        }
         return record
     }
 

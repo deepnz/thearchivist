@@ -15,6 +15,11 @@ final class LibraryViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var isOffline: Bool = false
 
+    /// Set when the CloudKit fetch fails. Without this an error renders as the
+    /// empty-library message, which tells users their library is empty when it
+    /// actually failed to load and invites them to re-add titles they own.
+    @Published var loadError: String? = nil
+
     private let monitor = NWPathMonitor()
     private let monitorQueue = DispatchQueue(label: "archive.network")
 

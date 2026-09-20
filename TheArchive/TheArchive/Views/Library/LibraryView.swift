@@ -142,16 +142,34 @@ struct LibraryView: View {
         .overlay(Rectangle().frame(height: 1).foregroundColor(ArchiveTheme.border), alignment: .bottom)
     }
 
+    // A failed load must not render as an empty library: that tells people
+    // their titles are gone when the fetch simply did not succeed.
     private var emptyState: some View {
         VStack(spacing: 16) {
             Spacer()
-            Text("Nothing here yet")
-                .font(ArchiveTheme.titleFont(size: 40))
-                .foregroundColor(ArchiveTheme.border)
-            Text("Head to Search to add your first title.")
-                .font(ArchiveTheme.monoFont(size: 14))
-                .foregroundColor(ArchiveTheme.textMuted)
-                .kerning(3)
+            if let loadError = libraryVM.loadError {
+                Text("Couldn't load your library")
+                    .font(ArchiveTheme.titleFont(size: 40))
+                    .foregroundColor(ArchiveTheme.accent2)
+                Text(loadError)
+                    .font(ArchiveTheme.monoFont(size: 14))
+                    .foregroundColor(ArchiveTheme.textMuted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 900)
+                Text("YOUR TITLES ARE SAFE — THIS IS A LOADING PROBLEM")
+                    .font(ArchiveTheme.monoFont(size: 12))
+                    .foregroundColor(ArchiveTheme.textMuted)
+                    .kerning(2)
+                    .padding(.top, 4)
+            } else {
+                Text("Nothing here yet")
+                    .font(ArchiveTheme.titleFont(size: 40))
+                    .foregroundColor(ArchiveTheme.border)
+                Text("Head to Search to add your first title.")
+                    .font(ArchiveTheme.monoFont(size: 14))
+                    .foregroundColor(ArchiveTheme.textMuted)
+                    .kerning(3)
+            }
             Spacer()
         }
     }

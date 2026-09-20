@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import CloudKit
 
 @main
 struct TheArchiveApp: App {
@@ -93,6 +94,7 @@ struct TheArchiveApp: App {
             let fetchedLists = try await ck.fetchAllWatchlists()
             libraryVM.items = fetchedItems
             watchlistVM.watchlists = fetchedLists
+            libraryVM.loadError = nil
 
             let liveIDs = Set(fetchedItems.map(\.iTunesID))
             await watchlistVM.pruneStale(liveITunesIDs: liveIDs, using: ck)
@@ -100,6 +102,18 @@ struct TheArchiveApp: App {
             // Fetch failed — preserve existing local state rather than wiping it.
             print("loadData failed: \(error.localizedDescription)")
             AppEventLog.record(.fetchFailure, error: error)
+
+            // "Did not find record type" is the expected response on a fresh
+            // account: nothing has been saved yet, so the type does not exist.
+            // That is a genuinely empty library, not an error worth alarming
+            // anyone about.
+            let ckError = error as NSError
+            let isMissingRecordType = ckError.domain == CKErrorDomain
+                && ckError.code == CKError.Code.unknownItem.rawValue
+
+            libraryVM.loadError = isMissingRecordType
+                ? nil
+                : "Could not load your library. \(ckError.localizedDescription)"
         }
         #endif
     }

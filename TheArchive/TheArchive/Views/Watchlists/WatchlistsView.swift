@@ -180,39 +180,47 @@ struct WatchlistsView: View {
             if let list = watchlistVM.selectedList {
                 let items = libraryVM.items.filter { list.itemIDs.contains($0.iTunesID) }
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack(alignment: .top) {
-                        // Title over a gold rule, matching the slate header on
-                        // the detail sheet so the two screens read as one set.
-                        VStack(alignment: .leading, spacing: 10) {
+                    // Title over a gold rule, matching the slate header on the
+                    // detail sheet so the two screens read as one set.
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .firstTextBaseline, spacing: 24) {
                             Text(list.name)
                                 .font(ArchiveTheme.titleFont(size: 52))
                                 .foregroundColor(ArchiveTheme.textPrimary)
-                            Rectangle()
-                                .fill(ArchiveTheme.accent)
-                                .frame(width: 90, height: 3)
-                            Text("\(items.count) \(items.count == 1 ? "TITLE" : "TITLES")")
-                                .font(ArchiveTheme.monoFont(size: 15))
-                                .foregroundColor(ArchiveTheme.textMuted)
-                                .kerning(3)
+
+                            // Sits beside the title rather than pushed to the
+                            // far right: from the first row of posters, up must
+                            // reach it, and tvOS moves focus to whatever is
+                            // vertically above. A button on the opposite edge
+                            // of the screen was unreachable that way.
+                            Button {
+                                showAddTitles = true
+                            } label: {
+                                Label("Add Titles", systemImage: "plus")
+                                    .font(ArchiveTheme.monoFont(size: 20))
+                                    .foregroundColor(ArchiveTheme.accent)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .strokeBorder(ArchiveTheme.border, lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(ArchiveFocusButtonStyle())
+
+                            Spacer(minLength: 0)
                         }
-                        Spacer()
-                        Button {
-                            showAddTitles = true
-                        } label: {
-                            Label("Add Titles", systemImage: "plus")
-                                .font(ArchiveTheme.monoFont(size: 20))
-                                .foregroundColor(ArchiveTheme.accent)
-                                .padding(.horizontal, 18)
-                                .padding(.vertical, 12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .strokeBorder(ArchiveTheme.border, lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(ArchiveFocusButtonStyle())
+                        Rectangle()
+                            .fill(ArchiveTheme.accent)
+                            .frame(width: 90, height: 3)
+                        Text("\(items.count) \(items.count == 1 ? "TITLE" : "TITLES")")
+                            .font(ArchiveTheme.monoFont(size: 15))
+                            .foregroundColor(ArchiveTheme.textMuted)
+                            .kerning(3)
                     }
                     .padding(.horizontal, 40)
                     .padding(.top, 30)
+                    .focusSection()
 
                     if items.isEmpty {
                         Text("No titles in this list yet.\nUse Add Titles to pick from your library.")
@@ -233,6 +241,9 @@ struct WatchlistsView: View {
                             .padding(40)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                        // Its own section, so moving up from the first row of
+                        // posters leaves the grid and lands in the header.
+                        .focusSection()
                     }
                 }
             } else {

@@ -10,18 +10,25 @@ struct GenrePillsView: View {
     private static let allGenresToken = "\u{0}all-genres"
     @FocusState private var focusedPill: String?
 
+    /// Marks the leading pill as this section's preferred entry point, so
+    /// moving down from the type filter always lands on "All Genres" rather
+    /// than the pill nearest where focus came from.
+    @Namespace private var pillFocus
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             // Generous spacing: focused pills scale up slightly, so tight
             // gaps make neighbours look like they are being clipped.
             HStack(spacing: 18) {
                 pill(label: "All Genres", value: nil)
+                    .prefersDefaultFocus(in: pillFocus)
                 ForEach(genres, id: \.self) { genre in
                     pill(label: genre, value: genre)
                 }
             }
             .padding(.horizontal, 40)
             .padding(.vertical, 8)
+            .focusScope(pillFocus)
             .onChange(of: focusedPill) { _, token in
                 guard let token else { return }
                 selected = token == Self.allGenresToken ? nil : token

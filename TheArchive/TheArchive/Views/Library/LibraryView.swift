@@ -15,6 +15,9 @@ struct LibraryView: View {
     @FocusState private var focusedType: TypeFilter?
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Entry point for the poster grid.
+    @Namespace private var gridFocus
+
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
     var body: some View {
@@ -73,15 +76,22 @@ struct LibraryView: View {
                     } else {
                         ScrollView {
                             LazyVGrid(columns: columns, spacing: 24) {
-                                ForEach(libraryVM.filteredItems) { item in
+                                ForEach(Array(libraryVM.filteredItems.enumerated()),
+                                        id: \.element.id) { index, item in
                                     NavigationLink(value: item) {
                                         PosterCardView(item: item)
                                     }
                                     .buttonStyle(.plain)
+                                    // First card is the grid's entry point, so
+                                    // coming down from the pills lands there
+                                    // rather than on whichever card is nearest.
+                                    .prefersDefaultFocus(index == 0, in: gridFocus)
                                 }
                             }
                             .padding(40)
+                            .focusScope(gridFocus)
                         }
+                        .focusSection()
                     }
                 }
             }

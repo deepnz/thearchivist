@@ -50,10 +50,22 @@ final class CloudKitService: ObservableObject {
     // invisible. Logging here catches every call site in one place; the error
     // is still rethrown so callers behave exactly as before.
 
-    func saveItem(_ item: LibraryItem) async throws {
+    /// Saves an item and returns it carrying the server's record.
+    ///
+    /// Callers must keep the returned value. A LibraryItem built from the
+    /// memberwise initialiser has no ckRecord, so toCKRecord() constructs a
+    /// fresh CKRecord with the same ID; saving that a second time is an insert,
+    /// and CloudKit rejects it with "record to insert already exists". Holding
+    /// the saved record means later edits are updates, and it preserves the
+    /// changeTag needed for conflict detection.
+    @discardableResult
+    func saveItem(_ item: LibraryItem) async throws -> LibraryItem {
         let record = item.toCKRecord()
         do {
             try await db.save(record)
+            var saved = item
+            saved.ckRecord = record
+            return saved
         } catch {
             AppEventLog.record(.saveItemFailure, error: error,
                                context: "\(item.catalogID) \(item.title)")
@@ -138,9 +150,16 @@ final class CloudKitService: ObservableObject {
         return lists
     }
 
-    func saveWatchlist(_ list: Watchlist) async throws {
+    /// Saves a watchlist and returns it carrying the server's record.
+    /// See saveItem for why the caller must keep the returned value.
+    @discardableResult
+    func saveWatchlist(_ list: Watchlist) async throws -> Watchlist {
+        let record = list.toCKRecord()
         do {
-            try await db.save(list.toCKRecord())
+            try await db.save(record)
+            var saved = list
+            saved.ckRecord = record
+            return saved
         } catch {
             AppEventLog.record(.saveWatchlistFailure, error: error, context: list.name)
             throw error

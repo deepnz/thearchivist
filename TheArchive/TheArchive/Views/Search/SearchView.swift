@@ -121,7 +121,9 @@ struct SearchView: View {
             watched: false,
             dateAdded: Date()
         )
-        try? await ck.saveItem(item)
-        await MainActor.run { libraryVM.items.append(item) }
+        // Keep whatever the save returns: on success it carries the server
+        // record, so later edits are updates rather than rejected inserts.
+        let stored = (try? await ck.saveItem(item)) ?? item
+        await MainActor.run { libraryVM.items.append(stored) }
     }
 }

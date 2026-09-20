@@ -258,7 +258,16 @@ struct WatchlistsView: View {
         var updated = watchlistVM.watchlists[idx]
         updated.itemIDs.append(item.iTunesID)
         watchlistVM.watchlists[idx] = updated
-        Task { try? await ck.saveWatchlist(updated) }
+        Task { await persistList(updated) }
+    }
+
+    /// Saves a list and keeps the record CloudKit returns, so a later edit is
+    /// an update rather than an insert the server rejects as a duplicate.
+    private func persistList(_ list: Watchlist) async {
+        guard let saved = try? await ck.saveWatchlist(list) else { return }
+        if let i = watchlistVM.watchlists.firstIndex(where: { $0.id == saved.id }) {
+            watchlistVM.watchlists[i] = saved
+        }
     }
 
     private func createList() {
@@ -266,7 +275,7 @@ struct WatchlistsView: View {
         guard !name.isEmpty else { return }
         let list = Watchlist(id: UUID().uuidString, name: name, itemIDs: [])
         watchlistVM.watchlists.append(list)
-        Task { try? await ck.saveWatchlist(list) }
+        Task { await persistList(list) }
         newListName = ""
     }
 

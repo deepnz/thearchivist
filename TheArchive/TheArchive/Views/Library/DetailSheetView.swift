@@ -223,8 +223,7 @@ struct DetailSheetView: View {
             updated.genres.append(genre)
         }
         currentItem = updated
-        Task { try? await ck.saveItem(updated) }
-        updateLibraryVM(updated)
+        persist(updated)
     }
 
     private func addCustomGenre() {
@@ -234,16 +233,14 @@ struct DetailSheetView: View {
         updated.genres.append(val)
         currentItem = updated
         customGenreInput = ""
-        Task { try? await ck.saveItem(updated) }
-        updateLibraryVM(updated)
+        persist(updated)
     }
 
     private func toggleWatched() {
         var updated = currentItem
         updated.watched.toggle()
         currentItem = updated
-        Task { try? await ck.saveItem(updated) }
-        updateLibraryVM(updated)
+        persist(updated)
     }
 
     private func toggleWatchlist(_ list: Watchlist) {
@@ -255,7 +252,12 @@ struct DetailSheetView: View {
             updated.itemIDs.append(currentItem.iTunesID)
         }
         watchlistVM.watchlists[idx] = updated
-        Task { try? await ck.saveWatchlist(updated) }
+        Task {
+            if let saved = try? await ck.saveWatchlist(updated),
+               let i = watchlistVM.watchlists.firstIndex(where: { $0.id == saved.id }) {
+                watchlistVM.watchlists[i] = saved
+            }
+        }
     }
 
     private func removeItem() {
@@ -291,6 +293,18 @@ struct DetailSheetView: View {
                 if await UIApplication.shared.open(url) { return }
             }
             showOpenError = true
+        }
+    }
+
+    /// Saves an edit and keeps the record CloudKit returns, so the next edit
+    /// is an update rather than an insert that the server rejects as a
+    /// duplicate. Updates local state immediately either way.
+    private func persist(_ updated: LibraryItem) {
+        updateLibraryVM(updated)
+        Task {
+            guard let saved = try? await ck.saveItem(updated) else { return }
+            currentItem = saved
+            updateLibraryVM(saved)
         }
     }
 

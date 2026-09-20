@@ -96,10 +96,14 @@ struct WatchlistsView: View {
                 showNewListInput = true
             } label: {
                 Label("New List", systemImage: "plus")
-                    .font(ArchiveTheme.monoFont(size: 16))
+                    .font(ArchiveTheme.monoFont(size: 22))
                     .foregroundColor(ArchiveTheme.accent)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
             }
-            .padding(20)
+            .buttonStyle(ArchiveFocusButtonStyle())
+            .padding(.horizontal, 14)
+            .padding(.vertical, 16)
 
             Rectangle()
                 .fill(ArchiveTheme.border)
@@ -111,19 +115,32 @@ struct WatchlistsView: View {
                         // A plain Button rather than List selection: outside a
                         // split view, List's selection binding does not drive
                         // the detail pane on tvOS.
+                        let isSelected = watchlistVM.selectedListID == list.id
                         Button {
                             watchlistVM.selectedListID = list.id
                         } label: {
                             Text(list.name)
-                                .font(ArchiveTheme.bodyFont(size: 18))
-                                .foregroundColor(watchlistVM.selectedListID == list.id
+                                .font(ArchiveTheme.bodyFont(size: 28))
+                                .lineLimit(1)
+                                .foregroundColor(isSelected
                                                  ? ArchiveTheme.accent
                                                  : ArchiveTheme.textPrimary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 14)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 10)
+                                // The highlight hugs the row rather than
+                                // filling the sidebar's full width and height,
+                                // which read as an oversized block.
+                                .background(isSelected ? ArchiveTheme.accent.opacity(0.12) : Color.clear)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(isSelected ? ArchiveTheme.accent.opacity(0.7) : Color.clear,
+                                                lineWidth: 1)
+                                )
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 3)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(ArchiveFocusButtonStyle())
                         .contextMenu {
                             Button("Rename") {
                                 listToRename = list

@@ -6,29 +6,42 @@ struct GenrePillsView: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            // Generous spacing: focused pills scale up slightly, so tight
+            // gaps make neighbours look like they are being clipped.
+            HStack(spacing: 18) {
                 pill(label: "All Genres", value: nil)
                 ForEach(genres, id: \.self) { genre in
                     pill(label: genre, value: genre)
                 }
             }
             .padding(.horizontal, 40)
+            .padding(.vertical, 8)
         }
     }
 
     @ViewBuilder
     private func pill(label: String, value: String?) -> some View {
         let isActive = selected == value
-        Button(label) { selected = value }
-            .font(ArchiveTheme.monoFont(size: 14))
-            .foregroundColor(isActive ? ArchiveTheme.accent : ArchiveTheme.textMuted)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 3)
-                    .stroke(isActive ? ArchiveTheme.accent.opacity(0.6) : ArchiveTheme.border, lineWidth: 1)
-                    .background(isActive ? ArchiveTheme.accent.opacity(0.1) : Color.clear)
-            )
-            .accessibilityAddTraits(isActive ? .isSelected : [])
+        // A plain Button gets the default tvOS focus highlight, a bright
+        // system-yellow box that clashes badly with the sepia palette.
+        // ArchiveFocusButtonStyle substitutes a gold border and a small lift.
+        Button {
+            selected = value
+        } label: {
+            Text(label)
+                .font(ArchiveTheme.monoFont(size: 18))
+                .kerning(1)
+                .foregroundColor(isActive ? ArchiveTheme.accent : ArchiveTheme.textMuted)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 11)
+                .background(isActive ? ArchiveTheme.accent.opacity(0.12) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(isActive ? ArchiveTheme.accent.opacity(0.7) : ArchiveTheme.border,
+                                lineWidth: 1)
+                )
+        }
+        .buttonStyle(ArchiveFocusButtonStyle())
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }

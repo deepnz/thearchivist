@@ -17,12 +17,23 @@ struct SearchView: View {
 
             VStack(spacing: 0) {
                 // Search bar
+                // .plain strips the tvOS default, which paints an opaque white
+                // capsule over any background set on the field and ignores the
+                // app's palette entirely.
                 TextField("Search films and TV shows…", text: $searchVM.query)
-                    .font(ArchiveTheme.bodyFont(size: 20))
+                    .textFieldStyle(.plain)
+                    .font(ArchiveTheme.bodyFont(size: 26))
                     .foregroundColor(ArchiveTheme.textPrimary)
-                    .padding(16)
+                    .tint(ArchiveTheme.accent)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 20)
                     .background(ArchiveTheme.surface)
-                    .overlay(Rectangle().frame(height: 1).foregroundColor(ArchiveTheme.border), alignment: .bottom)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(ArchiveTheme.accent.opacity(0.7), lineWidth: 2)
+                    )
+                    .padding(.horizontal, 40)
+                    .padding(.top, 20)
                     .onSubmit {
                         Task { await searchVM.search(existingIDs: Set(libraryVM.items.map(\.iTunesID))) }
                     }

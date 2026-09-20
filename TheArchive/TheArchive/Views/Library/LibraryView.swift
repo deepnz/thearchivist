@@ -70,13 +70,14 @@ struct LibraryView: View {
     private var toolbar: some View {
         HStack(spacing: 20) {
             // Type segmented control
-            Picker("Type", selection: $libraryVM.typeFilter) {
-                Text("All").tag(TypeFilter.all)
-                Text("Films").tag(TypeFilter.film)
-                Text("Series").tag(TypeFilter.series)
+            // Separate buttons rather than a segmented Picker: the segmented
+            // style crams its options together and cannot be spaced, and its
+            // tvOS focus treatment does not match the rest of the app.
+            HStack(spacing: 18) {
+                typeButton("All", .all)
+                typeButton("Films", .film)
+                typeButton("Series", .series)
             }
-            .pickerStyle(.segmented)
-            .frame(width: 320)
 
             Spacer()
 
@@ -105,6 +106,31 @@ struct LibraryView: View {
         }
         .padding(.horizontal, 40)
         .padding(.vertical, 16)
+    }
+
+    /// One option in the type filter. Focus is shown by a gold border rather
+    /// than the tvOS default highlight, matching the genre pills below.
+    @ViewBuilder
+    private func typeButton(_ label: String, _ filter: TypeFilter) -> some View {
+        let isActive = libraryVM.typeFilter == filter
+        Button {
+            libraryVM.typeFilter = filter
+        } label: {
+            Text(label)
+                .font(ArchiveTheme.monoFont(size: 18))
+                .kerning(2)
+                .foregroundColor(isActive ? ArchiveTheme.accent : ArchiveTheme.textMuted)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(isActive ? ArchiveTheme.accent.opacity(0.12) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(isActive ? ArchiveTheme.accent.opacity(0.7) : ArchiveTheme.border,
+                                lineWidth: 1)
+                )
+        }
+        .buttonStyle(ArchiveFocusButtonStyle())
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
     private var statsBar: some View {

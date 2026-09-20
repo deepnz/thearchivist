@@ -129,3 +129,23 @@ private struct SplitMix64 {
         Float(next() >> 40) / Float(1 << 24)
     }
 }
+
+// Focus treatment for tvOS buttons in the archival palette.
+//
+// The default tvOS focus effect paints a bright system-yellow rounded box over
+// the control, which reads as a rendering error against the sepia and gold
+// theme. This replaces it with a gold border and a subtle lift, so focus is
+// still obvious from across a room without breaking the palette.
+struct ArchiveFocusButtonStyle: ButtonStyle {
+    @Environment(\.isFocused) private var isFocused
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(ArchiveTheme.accent, lineWidth: isFocused ? 3 : 0)
+            )
+            .scaleEffect(isFocused ? 1.06 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: isFocused)
+    }
+}

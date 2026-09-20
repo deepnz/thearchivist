@@ -95,10 +95,11 @@ struct WatchlistsView: View {
     // MARK: - Panes
 
     /// Shared styling for the buttons beside a list's name.
-    private func headerButtonLabel(_ title: String, icon: String) -> some View {
+    private func headerButtonLabel(_ title: String, icon: String,
+                                   tint: Color = ArchiveTheme.accent) -> some View {
         Label(title, systemImage: icon)
             .font(ArchiveTheme.monoFont(size: 20))
-            .foregroundColor(ArchiveTheme.accent)
+            .foregroundColor(tint)
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
             .overlay(
@@ -224,6 +225,18 @@ struct WatchlistsView: View {
                                 }
                                 .buttonStyle(ArchiveFocusButtonStyle())
                                 .accessibilityLabel("Rename \(list.name)")
+
+                                // Deleting was also context-menu only. It keeps
+                                // its confirmation, and uses the crimson accent
+                                // so it reads as destructive without shouting.
+                                Button {
+                                    listToDelete = list
+                                } label: {
+                                    headerButtonLabel("Delete", icon: "trash",
+                                                      tint: ArchiveTheme.accent2)
+                                }
+                                .buttonStyle(ArchiveFocusButtonStyle())
+                                .accessibilityLabel("Delete \(list.name)")
                             }
 
                             Spacer(minLength: 0)

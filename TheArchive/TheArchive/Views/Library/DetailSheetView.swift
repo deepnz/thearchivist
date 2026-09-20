@@ -32,54 +32,67 @@ struct DetailSheetView: View {
                 // the slate header beside it already shows.
                 PosterCardView(item: currentItem, showsOverlayChrome: false)
 
-                // Details
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        // Modal slate header — barbershop stripe + catalog marker + title + gold underline
-                        VStack(alignment: .leading, spacing: 10) {
-                            BarbershopStripe()
-                            HStack(spacing: 10) {
-                                Text("▶")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(ArchiveTheme.accent2)
-                                Text(currentItem.catalogID)
-                                    .font(ArchiveTheme.monoFont(size: 18))
-                                    .foregroundColor(ArchiveTheme.accent)
-                                    .kerning(3)
-                            }
-                            Text(currentItem.title)
-                                .font(ArchiveTheme.titleFont(size: 42))
-                                .foregroundColor(ArchiveTheme.textPrimary)
-                            Rectangle()
-                                .fill(ArchiveTheme.accent)
-                                .frame(width: 64, height: 2)
-                            Text("\(currentItem.yearText) · \(currentItem.type == .film ? "Motion Picture" : "Television Series")")
-                                .font(ArchiveTheme.monoFont(size: 19))
-                                .foregroundColor(ArchiveTheme.textMuted)
-                                .kerning(2)
-                                .padding(.top, 2)
+                // Details. No ScrollView: with genres and watchlists side by
+                // side the whole sheet fits on one screen.
+                VStack(alignment: .leading, spacing: 24) {
+                    // Modal slate header — barbershop stripe + catalog marker + title + gold underline
+                    VStack(alignment: .leading, spacing: 10) {
+                        BarbershopStripe()
+                        HStack(spacing: 10) {
+                            Text("▶")
+                                .font(.system(size: 11))
+                                .foregroundColor(ArchiveTheme.accent2)
+                            Text(currentItem.catalogID)
+                                .font(ArchiveTheme.monoFont(size: 18))
+                                .foregroundColor(ArchiveTheme.accent)
+                                .kerning(3)
                         }
-                        .padding(.top, 4)
-
-                        // Primary actions sit directly under the header: they
-                        // are what people come to this screen to do, and at the
-                        // bottom they sat below two chip grids that can be
-                        // several rows tall.
-                        actionRow
-
-                        PerforationStrip()
-
-                        // Genre chips
-                        genreSection
-
-                        divider
-
-                        // Watchlist chips
-                        watchlistSection
-
+                        Text(currentItem.title)
+                            .font(ArchiveTheme.titleFont(size: 42))
+                            .foregroundColor(ArchiveTheme.textPrimary)
+                        Rectangle()
+                            .fill(ArchiveTheme.accent)
+                            .frame(width: 64, height: 2)
+                        Text("\(currentItem.yearText) · \(currentItem.type == .film ? "Motion Picture" : "Television Series")")
+                            .font(ArchiveTheme.monoFont(size: 19))
+                            .foregroundColor(ArchiveTheme.textMuted)
+                            .kerning(2)
+                            .padding(.top, 2)
                     }
-                    .padding(40)
+                    .padding(.top, 4)
+
+                    // Primary actions sit directly under the header: they
+                    // are what people come to this screen to do, and at the
+                    // bottom they sat below two chip grids that can be
+                    // several rows tall.
+                    actionRow
+
+                    PerforationStrip()
+
+                    // Genres and watchlists sit side by side rather than
+                    // stacked. Stacked, the two chip grids ran past the
+                    // bottom of the screen and had to be scrolled; split,
+                    // everything fits and the empty right half is used.
+                    HStack(alignment: .top, spacing: 36) {
+                        genreSection
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .focusSection()
+
+                        Rectangle()
+                            .fill(ArchiveTheme.border)
+                            .frame(width: 1)
+                            .frame(maxHeight: .infinity)
+
+                        watchlistSection
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .focusSection()
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer(minLength: 0)
                 }
+                .padding(40)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
             .padding(60)
         }

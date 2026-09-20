@@ -46,14 +46,30 @@ final class CloudKitService: ObservableObject {
         return items
     }
 
+    // Callers use `try?` and discard these errors, so failures were previously
+    // invisible. Logging here catches every call site in one place; the error
+    // is still rethrown so callers behave exactly as before.
+
     func saveItem(_ item: LibraryItem) async throws {
         let record = item.toCKRecord()
-        try await db.save(record)
+        do {
+            try await db.save(record)
+        } catch {
+            AppEventLog.record(.saveItemFailure, error: error,
+                               context: "\(item.catalogID) \(item.title)")
+            throw error
+        }
     }
 
     func deleteItem(_ item: LibraryItem) async throws {
         let recordID = CKRecord.ID(recordName: item.id)
-        try await db.deleteRecord(withID: recordID)
+        do {
+            try await db.deleteRecord(withID: recordID)
+        } catch {
+            AppEventLog.record(.deleteItemFailure, error: error,
+                               context: "\(item.catalogID) \(item.title)")
+            throw error
+        }
     }
 
     func itemExists(iTunesID: String) async throws -> Bool {
@@ -96,6 +112,11 @@ final class CloudKitService: ObservableObject {
                 try? await Task.sleep(nanoseconds: delay)
             }
         }
+        // All retries lost the race or CloudKit was unreachable. The item is
+        // permanently branded with a placeholder catalog ID, so make it visible.
+        AppEventLog.record(.catalogIDFallback,
+                           message: "all 3 attempts failed; using placeholder",
+                           context: Self.fallbackCatalogID(type: type))
         return Self.fallbackCatalogID(type: type)
     }
 
@@ -118,11 +139,21 @@ final class CloudKitService: ObservableObject {
     }
 
     func saveWatchlist(_ list: Watchlist) async throws {
-        try await db.save(list.toCKRecord())
+        do {
+            try await db.save(list.toCKRecord())
+        } catch {
+            AppEventLog.record(.saveWatchlistFailure, error: error, context: list.name)
+            throw error
+        }
     }
 
     func deleteWatchlist(_ list: Watchlist) async throws {
         let recordID = CKRecord.ID(recordName: list.id)
-        try await db.deleteRecord(withID: recordID)
+        do {
+            try await db.deleteRecord(withID: recordID)
+        } catch {
+            AppEventLog.record(.deleteWatchlistFailure, error: error, context: list.name)
+            throw error
+        }
     }
 }

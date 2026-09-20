@@ -56,6 +56,12 @@ struct TheArchiveApp: App {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 Task { await auth.checkCredentialState() }
             }
+            .task {
+                // Written on every launch regardless of sign-in state, so the
+                // dashboard shows whether the device can reach CloudKit at all.
+                AppEventLog.record(.launch, message: "app launched",
+                                   context: "signedIn=\(auth.isSignedIn)")
+            }
             #if DEBUG && targetEnvironment(simulator)
             .onReceive(libraryVM.objectWillChange) { _ in
                 DispatchQueue.main.async {
@@ -93,6 +99,7 @@ struct TheArchiveApp: App {
         } catch {
             // Fetch failed — preserve existing local state rather than wiping it.
             print("loadData failed: \(error.localizedDescription)")
+            AppEventLog.record(.fetchFailure, error: error)
         }
         #endif
     }

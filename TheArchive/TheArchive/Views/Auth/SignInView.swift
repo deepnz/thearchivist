@@ -29,6 +29,14 @@ struct SignInView: View {
                 .frame(width: 400, height: 64)
                 .signInWithAppleButtonStyle(.white)
 
+                if let authError = auth.authError {
+                    Text(authError)
+                        .font(ArchiveTheme.monoFont(size: 14))
+                        .foregroundColor(ArchiveTheme.accent2)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 700)
+                }
+
                 #if DEBUG && targetEnvironment(simulator)
                 Button("Skip Sign-In (DEBUG)") {
                     auth.isSignedIn = true

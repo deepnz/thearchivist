@@ -86,14 +86,37 @@ final class AuthService: NSObject, ObservableObject {
         }
     }
 
+    /// Set when sign-in fails, so the UI can say what went wrong instead of
+    /// appearing to do nothing.
+    @Published var authError: String? = nil
+
     func handleAuthorization(result: Result<ASAuthorization, Error>) {
         switch result {
         case .success(let auth):
-            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential else { return }
+            guard let credential = auth.credential as? ASAuthorizationAppleIDCredential else {
+                let kind = String(describing: type(of: auth.credential))
+                print("[Auth] Unexpected credential type: \(kind)")
+                AppEventLog.record(.authUnexpectedCredential, message: kind)
+                authError = "Unexpected credential type: \(kind)"
+                return
+            }
+            print("[Auth] Success. user=\(credential.user)")
+            AppEventLog.record(.authSuccess, message: "signed in")
             Self.keychainWrite(service: keychainService, account: keychainAccount, value: credential.user)
             userID = credential.user
             isSignedIn = true
-        case .failure:
+            authError = nil
+
+        case .failure(let error):
+            // ASAuthorizationError.canceled (1001) is the usual "nothing
+            // happened" case: the sheet failed to present or was dismissed.
+            let ns = error as NSError
+            print("[Auth] Failed: domain=\(ns.domain) code=\(ns.code) \(ns.localizedDescription)")
+            if let code = ASAuthorizationError.Code(rawValue: ns.code) {
+                print("[Auth] ASAuthorizationError: \(code)")
+            }
+            AppEventLog.record(.authFailure, error: error)
+            authError = "\(ns.localizedDescription) (code \(ns.code))"
             isSignedIn = false
         }
     }

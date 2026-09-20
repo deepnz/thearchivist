@@ -5,6 +5,13 @@ struct LibraryView: View {
     @EnvironmentObject var auth: AuthService
     @State private var showSignOutConfirm = false
 
+    /// Focus targets in the toolbar. tvOS moves focus to whichever control is
+    /// horizontally nearest, so coming down from the tab bar used to land on
+    /// Sort or Account on the right rather than the type filter on the left.
+    private enum ToolbarFocus: Hashable { case typeFilter }
+    @FocusState private var toolbarFocus: ToolbarFocus?
+    @Namespace private var libraryFocus
+
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
     var body: some View {
@@ -13,16 +20,20 @@ struct LibraryView: View {
                 ArchiveTheme.background.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Toolbar
+                    // Toolbar. focusSection makes the whole row a single focus
+                    // target, so moving down from the tab bar enters it at the
+                    // preferred control rather than the horizontally nearest
+                    // one, which was Account on the far right.
                     toolbar
+                        .focusSection()
 
-                    // Genre pills
+                    // Genre pills, their own focus section so moving down from
+                    // the toolbar enters the row from the left rather than
+                    // jumping to whichever pill happens to line up.
                     GenrePillsView(genres: libraryVM.computedGenrePills,
                                    selected: $libraryVM.selectedGenre)
                         .padding(.vertical, 10)
-
-                    // Stats bar
-                    statsBar
+                        .focusSection()
 
                     // Offline banner
                     if libraryVM.isOffline {
@@ -73,10 +84,18 @@ struct LibraryView: View {
             // Separate buttons rather than a segmented Picker: the segmented
             // style crams its options together and cannot be spaced, and its
             // tvOS focus treatment does not match the rest of the app.
-            HStack(spacing: 18) {
-                typeButton("All", .all)
-                typeButton("Films", .film)
-                typeButton("Series", .series)
+            VStack(alignment: .leading, spacing: 10) {
+                // Counts sit above the filter rather than below the genre
+                // pills, so the library's size reads first.
+                statsBar
+
+                HStack(spacing: 18) {
+                    typeButton("All", .all)
+                        .prefersDefaultFocus(in: libraryFocus)
+                    typeButton("Films", .film)
+                    typeButton("Series", .series)
+                }
+                .focused($toolbarFocus, equals: .typeFilter)
             }
 
             Spacer()
@@ -137,19 +156,16 @@ struct LibraryView: View {
         HStack(spacing: 24) {
             statItem(value: "\(libraryVM.filteredItems.filter { $0.type == .film }.count)", label: "FILMS")
             statItem(value: "\(libraryVM.filteredItems.filter { $0.type == .series }.count)", label: "SERIES")
-            statItem(value: "\(libraryVM.filteredItems.count)", label: "TOTAL")
         }
-        .padding(.horizontal, 40)
-        .padding(.vertical, 8)
     }
 
     private func statItem(value: String, label: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(value)
-                .font(ArchiveTheme.monoFont(size: 18).weight(.bold))
+                .font(ArchiveTheme.monoFont(size: 24).weight(.bold))
                 .foregroundColor(ArchiveTheme.accent)
             Text(label)
-                .font(ArchiveTheme.monoFont(size: 12))
+                .font(ArchiveTheme.monoFont(size: 15))
                 .foregroundColor(ArchiveTheme.textMuted)
                 .kerning(2)
         }

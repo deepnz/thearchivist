@@ -149,3 +149,22 @@ struct ArchiveFocusButtonStyle: ButtonStyle {
             .animation(.easeOut(duration: 0.15), value: isFocused)
     }
 }
+
+// Focus treatment for full-width rows, such as the watchlist sidebar.
+//
+// Unlike ArchiveFocusButtonStyle this does not scale the row: a full-width row
+// that grows on focus pushes against its container and makes the selection
+// fill and the focus ring drift apart. The ring is drawn on the same rounded
+// shape and inset as the row's own fill, so the two sit exactly together.
+struct ArchiveRowFocusStyle: ButtonStyle {
+    @Environment(\.isFocused) private var isFocused
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(ArchiveTheme.accent, lineWidth: isFocused ? 3 : 0)
+            )
+            .animation(.easeOut(duration: 0.12), value: isFocused)
+    }
+}

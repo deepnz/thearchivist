@@ -12,6 +12,10 @@ struct WatchlistsView: View {
     @State private var listToDelete: Watchlist? = nil
     @State private var showAddTitles = false
 
+    /// Which sidebar row currently has focus. Selection follows focus, so
+    /// scrolling the list updates the detail pane without a separate click.
+    @FocusState private var focusedListID: String?
+
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
     /// Wide enough for the longest expected list name at 18pt Courier Prime.
@@ -119,6 +123,10 @@ struct WatchlistsView: View {
                         Button {
                             watchlistVM.selectedListID = list.id
                         } label: {
+                            // Fill and border share one shape and one set of
+                            // insets, so the selection highlight and the focus
+                            // ring sit exactly on top of each other. Padding
+                            // between them left a visible gap.
                             Text(list.name)
                                 .font(ArchiveTheme.bodyFont(size: 28))
                                 .lineLimit(1)
@@ -127,20 +135,25 @@ struct WatchlistsView: View {
                                                  : ArchiveTheme.textPrimary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 18)
-                                .padding(.vertical, 10)
-                                // The highlight hugs the row rather than
-                                // filling the sidebar's full width and height,
-                                // which read as an oversized block.
-                                .background(isSelected ? ArchiveTheme.accent.opacity(0.12) : Color.clear)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .stroke(isSelected ? ArchiveTheme.accent.opacity(0.7) : Color.clear,
-                                                lineWidth: 1)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(isSelected ? ArchiveTheme.accent.opacity(0.12) : Color.clear)
                                 )
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 3)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .strokeBorder(isSelected ? ArchiveTheme.accent.opacity(0.7) : Color.clear,
+                                                      lineWidth: 1)
+                                )
                         }
-                        .buttonStyle(ArchiveFocusButtonStyle())
+                        .buttonStyle(ArchiveRowFocusStyle())
+                        // Spacing lives outside the button so it never appears
+                        // between the fill and the border.
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 3)
+                        // Selecting on focus: scrolling the sidebar changes the
+                        // detail pane directly, with no separate click.
+                        .focused($focusedListID, equals: list.id)
                         .contextMenu {
                             Button("Rename") {
                                 listToRename = list
@@ -157,6 +170,9 @@ struct WatchlistsView: View {
             Spacer(minLength: 0)
         }
         .frame(maxHeight: .infinity, alignment: .top)
+        .onChange(of: focusedListID) { _, id in
+            if let id { watchlistVM.selectedListID = id }
+        }
     }
 
     private var detailPane: some View {
@@ -164,19 +180,36 @@ struct WatchlistsView: View {
             if let list = watchlistVM.selectedList {
                 let items = libraryVM.items.filter { list.itemIDs.contains($0.iTunesID) }
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        Text(list.name)
-                            .font(ArchiveTheme.titleFont(size: 34))
-                            .foregroundColor(ArchiveTheme.textPrimary)
+                    HStack(alignment: .top) {
+                        // Title over a gold rule, matching the slate header on
+                        // the detail sheet so the two screens read as one set.
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(list.name)
+                                .font(ArchiveTheme.titleFont(size: 52))
+                                .foregroundColor(ArchiveTheme.textPrimary)
+                            Rectangle()
+                                .fill(ArchiveTheme.accent)
+                                .frame(width: 90, height: 3)
+                            Text("\(items.count) \(items.count == 1 ? "TITLE" : "TITLES")")
+                                .font(ArchiveTheme.monoFont(size: 15))
+                                .foregroundColor(ArchiveTheme.textMuted)
+                                .kerning(3)
+                        }
                         Spacer()
                         Button {
                             showAddTitles = true
                         } label: {
                             Label("Add Titles", systemImage: "plus")
-                                .font(ArchiveTheme.monoFont(size: 18))
+                                .font(ArchiveTheme.monoFont(size: 20))
                                 .foregroundColor(ArchiveTheme.accent)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .strokeBorder(ArchiveTheme.border, lineWidth: 1)
+                                )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(ArchiveFocusButtonStyle())
                     }
                     .padding(.horizontal, 40)
                     .padding(.top, 30)

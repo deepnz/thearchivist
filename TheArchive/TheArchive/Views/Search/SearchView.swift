@@ -9,6 +9,10 @@ struct SearchView: View {
     @State private var showDuplicateAlert = false
     @State private var duplicateTitle = ""
 
+    /// Drives the search field's focused appearance, so it fills with gold
+    /// rather than the system white when the keyboard is up.
+    @FocusState private var searchFieldFocused: Bool
+
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
     var body: some View {
@@ -19,15 +23,19 @@ struct SearchView: View {
                 // Search bar
                 // .plain strips the tvOS default, which paints an opaque white
                 // capsule over any background set on the field and ignores the
-                // app's palette entirely.
+                // app's palette entirely. The focused fill is a muted gold
+                // rather than the system white.
                 TextField("Search films and TV shows…", text: $searchVM.query)
                     .textFieldStyle(.plain)
                     .font(ArchiveTheme.bodyFont(size: 26))
-                    .foregroundColor(ArchiveTheme.textPrimary)
+                    .foregroundColor(searchFieldFocused ? .black : ArchiveTheme.textPrimary)
                     .tint(ArchiveTheme.accent)
+                    .focused($searchFieldFocused)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 20)
-                    .background(ArchiveTheme.surface)
+                    .background(searchFieldFocused
+                                ? ArchiveTheme.accent.opacity(0.85)
+                                : ArchiveTheme.surface)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
                             .stroke(ArchiveTheme.accent.opacity(0.7), lineWidth: 2)

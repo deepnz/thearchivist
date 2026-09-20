@@ -169,6 +169,13 @@ struct WatchlistsView: View {
                         // detail pane directly, with no separate click.
                         .focused($focusedListID, equals: list.id)
                         .contextMenu {
+                            // Add Titles leads: it is the action people
+                            // actually want on a list, and tvOS highlights the
+                            // first entry when the menu opens.
+                            Button("Add Titles") {
+                                watchlistVM.selectedListID = list.id
+                                showAddTitles = true
+                            }
                             Button("Rename") {
                                 listToRename = list
                                 renameText = list.name

@@ -13,6 +13,7 @@ struct LibraryView: View {
     /// Which type option has focus. The filter applies on focus, so moving
     /// across All / Films / Series updates the grid with no separate click.
     @FocusState private var focusedType: TypeFilter?
+    @Environment(\.scenePhase) private var scenePhase
 
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
@@ -45,6 +46,7 @@ struct LibraryView: View {
                     // bar lands on the type filter rather than whichever
                     // control happens to be horizontally nearest.
                     toolbar
+                        .focusSection()
 
                     // Genre pills, their own focus section so moving down from
                     // the toolbar enters the row from the left rather than
@@ -86,7 +88,24 @@ struct LibraryView: View {
             .navigationDestination(for: LibraryItem.self) { item in
                 DetailSheetView(item: item)
             }
+            // tvOS otherwise picks whichever focusable view is nearest the point
+            // focus came from, which is a genre pill near the centre rather
+            // than the left-aligned type filter. Placing focus explicitly makes
+            // the entry point deterministic instead of geometric.
+            //
+            // onAppear fires once; the tab stays alive when you switch away, so
+            // returning to it needs the scene-phase hook as well.
+            .onAppear { focusTypeFilter() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { focusTypeFilter() }
+            }
         }
+    }
+
+    /// Puts focus on the active type filter. Deferred a runloop turn because
+    /// the focusable views do not exist yet when onAppear fires.
+    private func focusTypeFilter() {
+        DispatchQueue.main.async { focusedType = libraryVM.typeFilter }
     }
 
     // MARK: - Subviews

@@ -4,7 +4,6 @@ import CloudKit
 
 @main
 struct TheArchiveApp: App {
-    @StateObject private var auth = AuthService()
     @StateObject private var ck = CloudKitService()
     @StateObject private var libraryVM = LibraryViewModel()
     @StateObject private var searchVM = SearchViewModel()
@@ -15,59 +14,52 @@ struct TheArchiveApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if auth.isSignedIn {
-                    // Search leads: on a fresh install the library is empty, so
-                    // adding titles is the first thing anyone needs to do.
-                    // Tags stay bound to the view, not the position, so the
-                    // -uiPreviewTab screenshot flag keeps working.
-                    TabView(selection: $selectedTab) {
-                        SearchView()
-                            .tabItem { Label("Search", systemImage: "magnifyingglass") }
-                            .tag(2)
-                        LibraryView()
-                            .tabItem { Label("Library", systemImage: "film") }
-                            .tag(0)
-                        WatchlistsView()
-                            .tabItem { Label("Watchlists", systemImage: "list.bullet") }
-                            .tag(1)
-                    }
-                    .onAppear {
-                        #if DEBUG && targetEnvironment(simulator)
-                        if let tab = UIPreviewFlags.requestedTab {
-                            selectedTab = tab
-                        }
-                        #endif
-                    }
-                    .task {
-                        libraryVM.startMonitoring()
-                        await loadData()
-                        #if DEBUG && targetEnvironment(simulator)
-                        // Select after loadData, so the list exists to select.
-                        if UIPreviewFlags.requestedTab == 1, watchlistVM.selectedListID == nil {
-                            watchlistVM.selectedListID = watchlistVM.watchlists.first?.id
-                        }
-                        #endif
-                    }
-                } else {
-                    SignInView()
+            // No sign-in. CloudKit's private database is already scoped to the
+            // iCloud account on the device, so the library is per-user without
+            // the app tracking an identity of its own. Sign in with Apple gated
+            // nothing: CloudKitService never read the user ID it produced.
+            //
+            // Search leads: on a fresh install the library is empty, so adding
+            // titles is the first thing anyone needs to do. Tags stay bound to
+            // the view, not the position, so -uiPreviewTab keeps working.
+            TabView(selection: $selectedTab) {
+                SearchView()
+                    .tabItem { Label("Search", systemImage: "magnifyingglass") }
+                    .tag(2)
+                LibraryView()
+                    .tabItem { Label("Library", systemImage: "film") }
+                    .tag(0)
+                WatchlistsView()
+                    .tabItem { Label("Watchlists", systemImage: "list.bullet") }
+                    .tag(1)
+            }
+            .onAppear {
+                #if DEBUG && targetEnvironment(simulator)
+                if let tab = UIPreviewFlags.requestedTab {
+                    selectedTab = tab
                 }
+                #endif
+            }
+            .task {
+                libraryVM.startMonitoring()
+                await loadData()
+                #if DEBUG && targetEnvironment(simulator)
+                // Select after loadData, so the list exists to select.
+                if UIPreviewFlags.requestedTab == 1, watchlistVM.selectedListID == nil {
+                    watchlistVM.selectedListID = watchlistVM.watchlists.first?.id
+                }
+                #endif
             }
             .preferredColorScheme(.dark)
             .overlay(GrainOverlay().ignoresSafeArea())
-            .environmentObject(auth)
             .environmentObject(ck)
             .environmentObject(libraryVM)
             .environmentObject(searchVM)
             .environmentObject(watchlistVM)
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                Task { await auth.checkCredentialState() }
-            }
             .task {
-                // Written on every launch regardless of sign-in state, so the
-                // dashboard shows whether the device can reach CloudKit at all.
-                AppEventLog.record(.launch, message: "app launched",
-                                   context: "signedIn=\(auth.isSignedIn)")
+                // Written on every launch so the dashboard shows whether the
+                // device can reach CloudKit at all.
+                AppEventLog.record(.launch, message: "app launched")
             }
             #if DEBUG && targetEnvironment(simulator)
             .onReceive(libraryVM.objectWillChange) { _ in

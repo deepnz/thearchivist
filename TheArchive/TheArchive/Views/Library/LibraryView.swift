@@ -2,8 +2,6 @@ import SwiftUI
 
 struct LibraryView: View {
     @EnvironmentObject var libraryVM: LibraryViewModel
-    @EnvironmentObject var auth: AuthService
-    @State private var showSignOutConfirm = false
 
     /// Focus targets in the toolbar. tvOS moves focus to whichever control is
     /// horizontally nearest, so coming down from the tab bar used to land on
@@ -34,12 +32,11 @@ struct LibraryView: View {
                     .allowsHitTesting(false)
 
                 VStack(spacing: 0) {
-                    // Toolbar. focusSection makes the whole row a single focus
-                    // target, so moving down from the tab bar enters it at the
-                    // preferred control rather than the horizontally nearest
-                    // one, which was Account on the far right.
+                    // Toolbar. The left and right groups are separate focus
+                    // sections (applied inside), so coming down from the tab
+                    // bar lands on the type filter rather than whichever
+                    // control happens to be horizontally nearest.
                     toolbar
-                        .focusSection()
 
                     // Genre pills, their own focus section so moving down from
                     // the toolbar enters the row from the left rather than
@@ -82,12 +79,6 @@ struct LibraryView: View {
                 DetailSheetView(item: item)
             }
         }
-        .alert("Sign Out", isPresented: $showSignOutConfirm) {
-            Button("Sign Out", role: .destructive) { auth.signOut() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Are you sure you want to sign out?")
-        }
     }
 
     // MARK: - Subviews
@@ -105,6 +96,7 @@ struct LibraryView: View {
                     typeButton("Films", .film)
                     typeButton("Series", .series)
                 }
+                .focusSection()
                 .focused($toolbarFocus, equals: .typeFilter)
                 .onChange(of: focusedType) { _, filter in
                     guard let filter else { return }
@@ -121,12 +113,16 @@ struct LibraryView: View {
 
             Spacer()
 
-            // Sort. Both controls are real: sort drives the grid order and the
-            // account button opens sign-out. They previously used unstyled
-            // system defaults, which read as stray chrome next to the themed
-            // filters, so they now carry the same border and focus treatment
-            // and name the current sort rather than just saying "Sort".
-            Menu {
+            // Sort and Account live in their own focus section. Without this
+            // the whole row is one target and tvOS jumps straight to them from
+            // the tab bar; sectioned, focus only crosses here after moving
+            // right through the filters.
+            HStack(spacing: 14) {
+                // Sort drives the grid order; Account opens sign-out. Both
+                // carry the same border and focus treatment as the filters,
+                // and Sort names the current order so it is readable without
+                // opening the menu.
+                Menu {
                 Button("A–Z") { libraryVM.sortOrder = .az }
                 Button("Z–A") { libraryVM.sortOrder = .za }
                 Button("Year: Newest") { libraryVM.sortOrder = .yearNewest }
@@ -148,25 +144,10 @@ struct LibraryView: View {
                         .strokeBorder(ArchiveTheme.border, lineWidth: 1)
                 )
             }
-            .buttonStyle(ArchiveFocusButtonStyle())
-            .accessibilityLabel("Sort by \(sortLabel)")
-
-            // Account
-            Button {
-                showSignOutConfirm = true
-            } label: {
-                Image(systemName: "person.circle")
-                    .font(.system(size: 22))
-                    .foregroundColor(ArchiveTheme.textMuted)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .strokeBorder(ArchiveTheme.border, lineWidth: 1)
-                    )
+                .buttonStyle(ArchiveFocusButtonStyle())
+                .accessibilityLabel("Sort by \(sortLabel)")
             }
-            .buttonStyle(ArchiveFocusButtonStyle())
-            .accessibilityLabel("Account and sign out")
+            .focusSection()
         }
         .padding(.horizontal, 40)
         // Extra headroom so the filter row clears the scorecard overlaid above

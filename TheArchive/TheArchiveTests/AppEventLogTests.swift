@@ -7,8 +7,8 @@ final class AppEventLogTests: XCTestCase {
     func test_eventNames_areStableDottedStrings() {
         // The dashboard is filtered by these strings, so a rename is a
         // breaking change to the diagnostics workflow.
-        XCTAssertEqual(AppEventLog.Name.authFailure.rawValue, "auth.failure")
         XCTAssertEqual(AppEventLog.Name.saveItemFailure.rawValue, "ck.saveItem.failure")
+        XCTAssertEqual(AppEventLog.Name.fetchFailure.rawValue, "ck.fetch.failure")
         XCTAssertEqual(AppEventLog.Name.catalogIDFallback.rawValue, "ck.catalogID.fallback")
         XCTAssertEqual(AppEventLog.Name.launch.rawValue, "app.launch")
     }
@@ -34,6 +34,6 @@ final class AppEventLogTests: XCTestCase {
                             code: CKError.Code.notAuthenticated.rawValue,
                             userInfo: [NSLocalizedDescriptionKey: "Not Authenticated"])
         // Exercises the formatting path; no throw means the overload is sound.
-        AppEventLog.record(.authFailure, error: error, context: "unit test")
+        AppEventLog.record(.saveItemFailure, error: error, context: "unit test")
     }
 }

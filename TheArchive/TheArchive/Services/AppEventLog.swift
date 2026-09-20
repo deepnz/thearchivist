@@ -12,18 +12,14 @@ import UIKit
 /// Telemetry and Logs pages only report Apple's own request metrics, so
 /// application-level diagnostics have to be records we write ourselves.
 ///
-/// Deliberately independent of AuthService: events must still be recorded when
-/// sign-in is the thing that failed. Writes go to the private database, which
-/// requires an iCloud account on the device but not an app sign-in.
+/// Writes go to the private database, which requires an iCloud account on the
+/// device.
 enum AppEventLog {
 
     static let recordType = "AppEvent"
 
     /// Event names are dotted and stable so the dashboard can be filtered.
     enum Name: String {
-        case authFailure = "auth.failure"
-        case authUnexpectedCredential = "auth.unexpected_credential"
-        case authSuccess = "auth.success"
         case fetchFailure = "ck.fetch.failure"
         case saveItemFailure = "ck.saveItem.failure"
         case deleteItemFailure = "ck.deleteItem.failure"

@@ -2,7 +2,8 @@ import Foundation
 import Combine
 import Network
 
-enum TypeFilter { case all, film, series }
+// Hashable so it can key a @FocusState binding in the library toolbar.
+enum TypeFilter: Hashable { case all, film, series }
 enum SortOrder { case az, za, yearNewest, yearOldest, newestAdded }
 
 @MainActor

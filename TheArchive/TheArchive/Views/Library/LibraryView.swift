@@ -12,6 +12,10 @@ struct LibraryView: View {
     @FocusState private var toolbarFocus: ToolbarFocus?
     @Namespace private var libraryFocus
 
+    /// Which type option has focus. The filter applies on focus, so moving
+    /// across All / Films / Series updates the grid with no separate click.
+    @FocusState private var focusedType: TypeFilter?
+
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
     var body: some View {
@@ -84,7 +88,7 @@ struct LibraryView: View {
             // Separate buttons rather than a segmented Picker: the segmented
             // style crams its options together and cannot be spaced, and its
             // tvOS focus treatment does not match the rest of the app.
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 18) {
                 // Counts sit above the filter rather than below the genre
                 // pills, so the library's size reads first.
                 statsBar
@@ -96,6 +100,17 @@ struct LibraryView: View {
                     typeButton("Series", .series)
                 }
                 .focused($toolbarFocus, equals: .typeFilter)
+                .onChange(of: focusedType) { _, filter in
+                    guard let filter else { return }
+                    libraryVM.typeFilter = filter
+                    // Switching type rebuilds the genre list, so a genre that
+                    // no longer exists would filter the grid down to nothing
+                    // with no visible pill to clear it.
+                    if let genre = libraryVM.selectedGenre,
+                       !libraryVM.computedGenrePills.contains(genre) {
+                        libraryVM.selectedGenre = nil
+                    }
+                }
             }
 
             Spacer()
@@ -129,6 +144,9 @@ struct LibraryView: View {
 
     /// One option in the type filter. Focus is shown by a gold border rather
     /// than the tvOS default highlight, matching the genre pills below.
+    ///
+    /// The filter applies on focus, so moving across the options updates the
+    /// grid immediately without a separate click.
     @ViewBuilder
     private func typeButton(_ label: String, _ filter: TypeFilter) -> some View {
         let isActive = libraryVM.typeFilter == filter
@@ -149,26 +167,40 @@ struct LibraryView: View {
                 )
         }
         .buttonStyle(ArchiveFocusButtonStyle())
+        .focused($focusedType, equals: filter)
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
+    /// Scorecard: large Playfair italic numerals over letterspaced Courier
+    /// labels, separated by a thin rule. Playfair Display is the display face
+    /// used for titles throughout, so the counts read as part of the same set
+    /// rather than as UI chrome.
     private var statsBar: some View {
-        HStack(spacing: 24) {
-            statItem(value: "\(libraryVM.filteredItems.filter { $0.type == .film }.count)", label: "FILMS")
-            statItem(value: "\(libraryVM.filteredItems.filter { $0.type == .series }.count)", label: "SERIES")
+        HStack(spacing: 32) {
+            statItem(value: libraryVM.filteredItems.filter { $0.type == .film }.count,
+                     label: "FILMS")
+
+            Rectangle()
+                .fill(ArchiveTheme.border)
+                .frame(width: 1, height: 52)
+
+            statItem(value: libraryVM.filteredItems.filter { $0.type == .series }.count,
+                     label: "SERIES")
         }
     }
 
-    private func statItem(value: String, label: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(value)
-                .font(ArchiveTheme.monoFont(size: 24).weight(.bold))
+    private func statItem(value: Int, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(String(value))
+                .font(ArchiveTheme.titleFont(size: 58))
                 .foregroundColor(ArchiveTheme.accent)
             Text(label)
-                .font(ArchiveTheme.monoFont(size: 15))
+                .font(ArchiveTheme.monoFont(size: 14))
                 .foregroundColor(ArchiveTheme.textMuted)
-                .kerning(2)
+                .kerning(4)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(value) \(label.lowercased())")
     }
 
     private var offlineBanner: some View {

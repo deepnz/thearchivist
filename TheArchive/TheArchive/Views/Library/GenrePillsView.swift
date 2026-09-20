@@ -4,6 +4,12 @@ struct GenrePillsView: View {
     let genres: [String]
     @Binding var selected: String?
 
+    /// Which pill has focus. The genre applies on focus, so moving across the
+    /// row filters the grid with no separate click. "All Genres" is nil in the
+    /// binding, so it uses a sentinel here to stay distinct from "no focus".
+    private static let allGenresToken = "\u{0}all-genres"
+    @FocusState private var focusedPill: String?
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             // Generous spacing: focused pills scale up slightly, so tight
@@ -16,6 +22,10 @@ struct GenrePillsView: View {
             }
             .padding(.horizontal, 40)
             .padding(.vertical, 8)
+            .onChange(of: focusedPill) { _, token in
+                guard let token else { return }
+                selected = token == Self.allGenresToken ? nil : token
+            }
         }
     }
 
@@ -42,6 +52,7 @@ struct GenrePillsView: View {
                 )
         }
         .buttonStyle(ArchiveFocusButtonStyle())
+        .focused($focusedPill, equals: value ?? Self.allGenresToken)
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }

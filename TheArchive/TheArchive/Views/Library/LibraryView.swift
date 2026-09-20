@@ -31,6 +31,14 @@ struct LibraryView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .allowsHitTesting(false)
 
+                // Wordmark balances the scorecard in the matching empty band on
+                // the right of the tab bar. Also not focusable.
+                ArchiveWordmark()
+                    .padding(.trailing, 60)
+                    .offset(y: -106)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .allowsHitTesting(false)
+
                 VStack(spacing: 0) {
                     // Toolbar. The left and right groups are separate focus
                     // sections (applied inside), so coming down from the tab

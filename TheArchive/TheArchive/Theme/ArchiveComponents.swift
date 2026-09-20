@@ -168,3 +168,26 @@ struct ArchiveRowFocusStyle: ButtonStyle {
             .animation(.easeOut(duration: 0.12), value: isFocused)
     }
 }
+
+// App wordmark: "The Archive" in Playfair italic gold over a letterspaced
+// Courier tagline. Recovered from the sign-in screen, which was removed along
+// with Sign in with Apple, taking the app's only branding with it.
+struct ArchiveWordmark: View {
+    var titleSize: CGFloat = 34
+    var taglineSize: CGFloat = 12
+    var alignment: HorizontalAlignment = .trailing
+
+    var body: some View {
+        VStack(alignment: alignment, spacing: 4) {
+            Text("The Archive")
+                .font(ArchiveTheme.titleFont(size: titleSize))
+                .foregroundColor(ArchiveTheme.accent)
+            Text("YOUR PERSONAL COLLECTION")
+                .font(ArchiveTheme.monoFont(size: taglineSize))
+                .foregroundColor(ArchiveTheme.textMuted)
+                .kerning(3)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("The Archive, your personal collection")
+    }
+}

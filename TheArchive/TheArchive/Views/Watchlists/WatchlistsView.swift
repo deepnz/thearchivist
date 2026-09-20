@@ -94,6 +94,19 @@ struct WatchlistsView: View {
 
     // MARK: - Panes
 
+    /// Shared styling for the buttons beside a list's name.
+    private func headerButtonLabel(_ title: String, icon: String) -> some View {
+        Label(title, systemImage: icon)
+            .font(ArchiveTheme.monoFont(size: 20))
+            .foregroundColor(ArchiveTheme.accent)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(ArchiveTheme.border, lineWidth: 1)
+            )
+    }
+
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
@@ -183,30 +196,35 @@ struct WatchlistsView: View {
                     // Title over a gold rule, matching the slate header on the
                     // detail sheet so the two screens read as one set.
                     VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .firstTextBaseline, spacing: 56) {
+                        HStack(alignment: .firstTextBaseline, spacing: 84) {
                             Text(list.name)
                                 .font(ArchiveTheme.titleFont(size: 52))
                                 .foregroundColor(ArchiveTheme.textPrimary)
 
-                            // Sits beside the title rather than pushed to the
-                            // far right: from the first row of posters, up must
-                            // reach it, and tvOS moves focus to whatever is
-                            // vertically above. A button on the opposite edge
-                            // of the screen was unreachable that way.
-                            Button {
-                                showAddTitles = true
-                            } label: {
-                                Label("Add Titles", systemImage: "plus")
-                                    .font(ArchiveTheme.monoFont(size: 20))
-                                    .foregroundColor(ArchiveTheme.accent)
-                                    .padding(.horizontal, 18)
-                                    .padding(.vertical, 12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .strokeBorder(ArchiveTheme.border, lineWidth: 1)
-                                    )
+                            // These sit beside the title rather than pushed to
+                            // the far right: from the first row of posters, up
+                            // must reach them, and tvOS moves focus to whatever
+                            // is vertically above. Buttons on the opposite edge
+                            // of the screen were unreachable that way.
+                            HStack(spacing: 16) {
+                                Button {
+                                    showAddTitles = true
+                                } label: {
+                                    headerButtonLabel("Add Titles", icon: "plus")
+                                }
+                                .buttonStyle(ArchiveFocusButtonStyle())
+
+                                // Rename was only reachable by long-pressing a
+                                // sidebar row, which is undiscoverable.
+                                Button {
+                                    listToRename = list
+                                    renameText = list.name
+                                } label: {
+                                    headerButtonLabel("Rename", icon: "pencil")
+                                }
+                                .buttonStyle(ArchiveFocusButtonStyle())
+                                .accessibilityLabel("Rename \(list.name)")
                             }
-                            .buttonStyle(ArchiveFocusButtonStyle())
 
                             Spacer(minLength: 0)
                         }

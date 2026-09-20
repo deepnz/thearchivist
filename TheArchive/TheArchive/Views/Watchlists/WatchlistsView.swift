@@ -183,7 +183,7 @@ struct WatchlistsView: View {
                     // Title over a gold rule, matching the slate header on the
                     // detail sheet so the two screens read as one set.
                     VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .firstTextBaseline, spacing: 24) {
+                        HStack(alignment: .firstTextBaseline, spacing: 56) {
                             Text(list.name)
                                 .font(ArchiveTheme.titleFont(size: 52))
                                 .foregroundColor(ArchiveTheme.textPrimary)

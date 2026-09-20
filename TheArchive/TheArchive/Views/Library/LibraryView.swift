@@ -23,6 +23,16 @@ struct LibraryView: View {
             ZStack(alignment: .top) {
                 ArchiveTheme.background.ignoresSafeArea()
 
+                // The scorecard sits in the empty space to the left of the
+                // system tab bar, which is centred and leaves both flanks
+                // unused. It is not focusable, so occupying that band costs
+                // nothing in navigation.
+                statsBar
+                    .padding(.leading, 60)
+                    .offset(y: -118)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .allowsHitTesting(false)
+
                 VStack(spacing: 0) {
                     // Toolbar. focusSection makes the whole row a single focus
                     // target, so moving down from the tab bar enters it at the
@@ -89,10 +99,6 @@ struct LibraryView: View {
             // style crams its options together and cannot be spaced, and its
             // tvOS focus treatment does not match the rest of the app.
             VStack(alignment: .leading, spacing: 18) {
-                // Counts sit above the filter rather than below the genre
-                // pills, so the library's size reads first.
-                statsBar
-
                 HStack(spacing: 18) {
                     typeButton("All", .all)
                         .prefersDefaultFocus(in: libraryFocus)
@@ -115,7 +121,11 @@ struct LibraryView: View {
 
             Spacer()
 
-            // Sort
+            // Sort. Both controls are real: sort drives the grid order and the
+            // account button opens sign-out. They previously used unstyled
+            // system defaults, which read as stray chrome next to the themed
+            // filters, so they now carry the same border and focus treatment
+            // and name the current sort rather than just saying "Sort".
             Menu {
                 Button("A–Z") { libraryVM.sortOrder = .az }
                 Button("Z–A") { libraryVM.sortOrder = .za }
@@ -123,23 +133,46 @@ struct LibraryView: View {
                 Button("Year: Oldest") { libraryVM.sortOrder = .yearOldest }
                 Button("Newest Added") { libraryVM.sortOrder = .newestAdded }
             } label: {
-                Label("Sort", systemImage: "arrow.up.arrow.down")
-                    .font(ArchiveTheme.monoFont(size: 14))
-                    .foregroundColor(ArchiveTheme.textMuted)
+                HStack(spacing: 10) {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 16))
+                    Text(sortLabel)
+                        .font(ArchiveTheme.monoFont(size: 18))
+                        .kerning(2)
+                }
+                .foregroundColor(ArchiveTheme.textMuted)
+                .padding(.horizontal, 22)
+                .padding(.vertical, 12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .strokeBorder(ArchiveTheme.border, lineWidth: 1)
+                )
             }
+            .buttonStyle(ArchiveFocusButtonStyle())
+            .accessibilityLabel("Sort by \(sortLabel)")
 
             // Account
             Button {
                 showSignOutConfirm = true
             } label: {
                 Image(systemName: "person.circle")
-                    .font(.system(size: 24))
+                    .font(.system(size: 22))
                     .foregroundColor(ArchiveTheme.textMuted)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .strokeBorder(ArchiveTheme.border, lineWidth: 1)
+                    )
             }
-            .accessibilityLabel("Account")
+            .buttonStyle(ArchiveFocusButtonStyle())
+            .accessibilityLabel("Account and sign out")
         }
         .padding(.horizontal, 40)
-        .padding(.vertical, 16)
+        // Extra headroom so the filter row clears the scorecard overlaid above
+        // it rather than crowding directly underneath.
+        .padding(.top, 52)
+        .padding(.bottom, 16)
     }
 
     /// One option in the type filter. Focus is shown by a gold border rather
@@ -171,18 +204,30 @@ struct LibraryView: View {
         .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
+    /// The active sort, named on the button so the current order is visible
+    /// without opening the menu.
+    private var sortLabel: String {
+        switch libraryVM.sortOrder {
+        case .az:          return "A–Z"
+        case .za:          return "Z–A"
+        case .yearNewest:  return "NEWEST"
+        case .yearOldest:  return "OLDEST"
+        case .newestAdded: return "RECENT"
+        }
+    }
+
     /// Scorecard: large Playfair italic numerals over letterspaced Courier
     /// labels, separated by a thin rule. Playfair Display is the display face
     /// used for titles throughout, so the counts read as part of the same set
     /// rather than as UI chrome.
     private var statsBar: some View {
-        HStack(spacing: 32) {
+        HStack(spacing: 40) {
             statItem(value: libraryVM.filteredItems.filter { $0.type == .film }.count,
                      label: "FILMS")
 
             Rectangle()
                 .fill(ArchiveTheme.border)
-                .frame(width: 1, height: 52)
+                .frame(width: 1, height: 84)
 
             statItem(value: libraryVM.filteredItems.filter { $0.type == .series }.count,
                      label: "SERIES")
@@ -190,14 +235,14 @@ struct LibraryView: View {
     }
 
     private func statItem(value: Int, label: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(String(value))
-                .font(ArchiveTheme.titleFont(size: 58))
+                .font(ArchiveTheme.titleFont(size: 92))
                 .foregroundColor(ArchiveTheme.accent)
             Text(label)
-                .font(ArchiveTheme.monoFont(size: 14))
+                .font(ArchiveTheme.monoFont(size: 17))
                 .foregroundColor(ArchiveTheme.textMuted)
-                .kerning(4)
+                .kerning(5)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(value) \(label.lowercased())")

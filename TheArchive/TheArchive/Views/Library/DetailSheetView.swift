@@ -43,7 +43,7 @@ struct DetailSheetView: View {
                                     .font(.system(size: 11))
                                     .foregroundColor(ArchiveTheme.accent2)
                                 Text(currentItem.catalogID)
-                                    .font(ArchiveTheme.monoFont(size: 13))
+                                    .font(ArchiveTheme.monoFont(size: 18))
                                     .foregroundColor(ArchiveTheme.accent)
                                     .kerning(3)
                             }
@@ -54,7 +54,7 @@ struct DetailSheetView: View {
                                 .fill(ArchiveTheme.accent)
                                 .frame(width: 64, height: 2)
                             Text("\(currentItem.yearText) · \(currentItem.type == .film ? "Motion Picture" : "Television Series")")
-                                .font(ArchiveTheme.monoFont(size: 14))
+                                .font(ArchiveTheme.monoFont(size: 19))
                                 .foregroundColor(ArchiveTheme.textMuted)
                                 .kerning(2)
                                 .padding(.top, 2)
@@ -79,7 +79,7 @@ struct DetailSheetView: View {
                         } label: {
                             Label(currentItem.watched ? "Mark as Unwatched" : "Mark as Watched",
                                   systemImage: currentItem.watched ? "checkmark.circle.fill" : "circle")
-                                .font(ArchiveTheme.bodyFont(size: 18))
+                                .font(ArchiveTheme.bodyFont(size: 22))
                                 .foregroundColor(currentItem.watched ? ArchiveTheme.accent : ArchiveTheme.textMuted)
                         }
 
@@ -95,14 +95,26 @@ struct DetailSheetView: View {
                                 .background(ArchiveTheme.accent)
                                 .cornerRadius(6)
                         }
+                        .buttonStyle(.plain)
                         .accessibilityLabel("Open \(currentItem.title) in Apple TV")
 
-                        // Remove
-                        Button("Remove from Library", role: .destructive) {
+                        // Remove. Same button shape as "Open in Apple TV", but
+                        // in the muted archival crimson rather than the system
+                        // destructive red, which is far too bright against the
+                        // sepia palette.
+                        Button {
                             showRemoveConfirm = true
+                        } label: {
+                            Text("Remove from Library")
+                                .font(ArchiveTheme.bodyFont(size: 20).weight(.bold))
+                                .foregroundColor(ArchiveTheme.textPrimary)
+                                .frame(maxWidth: 360)
+                                .padding(.vertical, 16)
+                                .background(ArchiveTheme.accent2)
+                                .cornerRadius(6)
                         }
-                        .font(ArchiveTheme.monoFont(size: 14))
-                        .foregroundColor(ArchiveTheme.textMuted)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Remove \(currentItem.title) from library")
                     }
                     .padding(40)
                 }
@@ -129,7 +141,7 @@ struct DetailSheetView: View {
     private var genreSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("GENRES")
-                .font(ArchiveTheme.monoFont(size: 12))
+                .font(ArchiveTheme.monoFont(size: 18))
                 .foregroundColor(ArchiveTheme.textMuted)
                 .kerning(3)
 
@@ -142,7 +154,7 @@ struct DetailSheetView: View {
 
             // Custom genre input
             TextField("Custom genre…", text: $customGenreInput)
-                .font(ArchiveTheme.monoFont(size: 14))
+                .font(ArchiveTheme.monoFont(size: 20))
                 .foregroundColor(ArchiveTheme.textPrimary)
                 .onSubmit { addCustomGenre() }
         }
@@ -151,10 +163,10 @@ struct DetailSheetView: View {
     private func genreChip(_ genre: String) -> some View {
         let isSelected = currentItem.genres.contains(genre)
         return Button(genre) { toggleGenre(genre) }
-            .font(ArchiveTheme.monoFont(size: 14))
+            .font(ArchiveTheme.monoFont(size: 20))
             .foregroundColor(isSelected ? ArchiveTheme.accent : ArchiveTheme.textMuted)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 3)
                     .stroke(isSelected ? ArchiveTheme.accent.opacity(0.6) : ArchiveTheme.border, lineWidth: 1)
@@ -167,13 +179,13 @@ struct DetailSheetView: View {
     private var watchlistSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("WATCHLISTS")
-                .font(ArchiveTheme.monoFont(size: 12))
+                .font(ArchiveTheme.monoFont(size: 18))
                 .foregroundColor(ArchiveTheme.textMuted)
                 .kerning(3)
 
             if watchlistVM.watchlists.isEmpty {
                 Text("No lists yet — create one in the Watchlists tab")
-                    .font(ArchiveTheme.monoFont(size: 14))
+                    .font(ArchiveTheme.monoFont(size: 20))
                     .foregroundColor(ArchiveTheme.textMuted)
             } else {
                 FlowLayout(spacing: 8) {
@@ -188,10 +200,10 @@ struct DetailSheetView: View {
     private func watchlistChip(_ list: Watchlist) -> some View {
         let isIn = list.itemIDs.contains(currentItem.iTunesID)
         return Button(list.name) { toggleWatchlist(list) }
-            .font(ArchiveTheme.monoFont(size: 14))
+            .font(ArchiveTheme.monoFont(size: 20))
             .foregroundColor(isIn ? ArchiveTheme.accent2 : ArchiveTheme.textMuted)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 3)
                     .stroke(isIn ? ArchiveTheme.accent2.opacity(0.6) : ArchiveTheme.border, lineWidth: 1)

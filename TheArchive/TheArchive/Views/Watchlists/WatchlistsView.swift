@@ -10,6 +10,7 @@ struct WatchlistsView: View {
     @State private var listToRename: Watchlist? = nil
     @State private var renameText = ""
     @State private var listToDelete: Watchlist? = nil
+    @State private var showAddTitles = false
 
     private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
@@ -65,6 +66,9 @@ struct WatchlistsView: View {
                     }
                 }
             }
+        }
+        .fullScreenCover(isPresented: $showAddTitles) {
+            addTitlesSheet
         }
         .alert("New List", isPresented: $showNewListInput) {
             TextField("List name", text: $newListName)
@@ -142,36 +146,120 @@ struct WatchlistsView: View {
         Group {
             if let list = watchlistVM.selectedList {
                 let items = libraryVM.items.filter { list.itemIDs.contains($0.iTunesID) }
-                if items.isEmpty {
-                    Text("No titles in this list yet.\nAdd them from the Library.")
-                        .font(ArchiveTheme.monoFont(size: 18))
-                        .foregroundColor(ArchiveTheme.textMuted)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
-                            ForEach(items) { item in
-                                NavigationLink(value: item) {
-                                    PosterCardView(item: item)
-                                }
-                                .buttonStyle(.plain)
-                            }
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Text(list.name)
+                            .font(ArchiveTheme.titleFont(size: 34))
+                            .foregroundColor(ArchiveTheme.textPrimary)
+                        Spacer()
+                        Button {
+                            showAddTitles = true
+                        } label: {
+                            Label("Add Titles", systemImage: "plus")
+                                .font(ArchiveTheme.monoFont(size: 18))
+                                .foregroundColor(ArchiveTheme.accent)
                         }
-                        .padding(40)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.top, 30)
+
+                    if items.isEmpty {
+                        Text("No titles in this list yet.\nUse Add Titles to pick from your library.")
+                            .font(ArchiveTheme.monoFont(size: 20))
+                            .foregroundColor(ArchiveTheme.textMuted)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollView {
+                            LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                                ForEach(items) { item in
+                                    NavigationLink(value: item) {
+                                        PosterCardView(item: item)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(40)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                 }
             } else {
                 Text("Select a list")
-                    .font(ArchiveTheme.monoFont(size: 18))
+                    .font(ArchiveTheme.monoFont(size: 20))
                     .foregroundColor(ArchiveTheme.textMuted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
 
+    /// Picker listing every library title not already in the selected list.
+    /// Tapping one adds it and keeps the sheet open, so several titles can be
+    /// added in a row without reopening.
+    private var addTitlesSheet: some View {
+        ZStack {
+            ArchiveTheme.background.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text("ADD TO \(watchlistVM.selectedList?.name.uppercased() ?? "LIST")")
+                    .font(ArchiveTheme.monoFont(size: 20))
+                    .foregroundColor(ArchiveTheme.textMuted)
+                    .kerning(3)
+                    .padding(.horizontal, 60)
+                    .padding(.top, 50)
+                    .padding(.bottom, 20)
+
+                let candidates = libraryVM.items.filter {
+                    !(watchlistVM.selectedList?.itemIDs.contains($0.iTunesID) ?? false)
+                }
+
+                if candidates.isEmpty {
+                    Text(libraryVM.items.isEmpty
+                         ? "Your library is empty. Add titles from Search first."
+                         : "Every title in your library is already in this list.")
+                        .font(ArchiveTheme.monoFont(size: 20))
+                        .foregroundColor(ArchiveTheme.textMuted)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+                            ForEach(candidates) { item in
+                                Button {
+                                    addToSelectedList(item)
+                                } label: {
+                                    PosterCardView(item: item)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 60)
+                        .padding(.bottom, 40)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+
+                Button("Done") { showAddTitles = false }
+                    .font(ArchiveTheme.bodyFont(size: 20))
+                    .padding(.horizontal, 60)
+                    .padding(.bottom, 40)
+            }
+        }
+    }
+
     // MARK: - Actions
+
+    /// Adds a library title to the selected watchlist and persists the change.
+    private func addToSelectedList(_ item: LibraryItem) {
+        guard let list = watchlistVM.selectedList,
+              let idx = watchlistVM.watchlists.firstIndex(where: { $0.id == list.id }),
+              !list.itemIDs.contains(item.iTunesID) else { return }
+
+        var updated = watchlistVM.watchlists[idx]
+        updated.itemIDs.append(item.iTunesID)
+        watchlistVM.watchlists[idx] = updated
+        Task { try? await ck.saveWatchlist(updated) }
+    }
 
     private func createList() {
         let name = newListName.trimmingCharacters(in: .whitespaces)

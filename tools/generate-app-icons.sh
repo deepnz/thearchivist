@@ -14,7 +14,10 @@
 # The script verifies the font is available and refuses to run without it.
 set -euo pipefail
 
-if ! system_profiler SPFontsDataType 2>/dev/null | grep -qi "playfair"; then
+# Note: `grep -q` exits as soon as it matches, which sends SIGPIPE to
+# system_profiler and fails the whole pipeline under `set -o pipefail`. Count
+# matches instead so the producer always runs to completion.
+if [ "$(system_profiler SPFontsDataType 2>/dev/null | grep -ci "playfair" || true)" -eq 0 ]; then
   echo "ERROR: Playfair Display is not installed; the wordmark would render in a" >&2
   echo "       fallback font. Install it first (see header comment)." >&2
   exit 1
@@ -32,49 +35,44 @@ GOLD="#c8973a"
 # existing artwork. Coordinates are in a 0..W x 0..H viewBox so they scale.
 mark_svg() { # W H
   local w=$1 h=$2
-  # Geometry keyed off the short edge so proportions hold across aspect ratios.
   python3 - "$w" "$h" <<'PY'
 import sys
 w, h = float(sys.argv[1]), float(sys.argv[2])
-cx = w / 2
-# The letterform shrinks and rides higher to leave room for the wordmark below.
-lh = h * 0.48
-top = h * 0.17
-bot = top + lh
-half = lh * 0.42          # half-width of the splayed legs
-stroke = lh * 0.17        # thickness of each leg
-# Crossbar sits ~62% down the letter.
-bar_y = top + lh * 0.62
-bar_h = lh * 0.085
-inner = half * 0.30       # half-width of the notch opening
+cx, cy = w/2, h*0.44
+cw, ch = h*0.52, h*0.63
+GOLD, CRIMSON = "#c8973a", "#8b2635"
 
-# Outer silhouette: apex -> right foot outer -> right foot inner -> back up -> mirror
-outer = (f'M {cx:.2f} {top:.2f} '
-         f'L {cx+half:.2f} {bot:.2f} '
-         f'L {cx+half-stroke:.2f} {bot:.2f} '
-         f'L {cx:.2f} {top+stroke*1.9:.2f} '
-         f'L {cx-half+stroke:.2f} {bot:.2f} '
-         f'L {cx-half:.2f} {bot:.2f} Z')
-# Crossbar spanning the legs, with a notch rising out of its top edge.
-# Drawn as one outline so evenodd fill does not cancel the overlap.
-bw = half * 0.70          # half-width of the crossbar
-bar = (f'M {cx-bw:.2f} {bar_y:.2f} '
-       f'L {cx-inner:.2f} {bar_y:.2f} '
-       f'L {cx-inner:.2f} {bar_y-bar_h*0.9:.2f} '
-       f'L {cx+inner:.2f} {bar_y-bar_h*0.9:.2f} '
-       f'L {cx+inner:.2f} {bar_y:.2f} '
-       f'L {cx+bw:.2f} {bar_y:.2f} '
-       f'L {cx+bw:.2f} {bar_y+bar_h:.2f} '
-       f'L {cx-bw:.2f} {bar_y+bar_h:.2f} Z')
-# Wordmark sits below the letterform, in the app's own title face.
-word_y = bot + h * 0.20
-word_size = h * 0.145
+def letter_A(ax, ay, size, color):
+    half = size*0.42; stroke = size*0.17
+    top, bot = ay-size/2, ay+size/2
+    bar_y = top + size*0.62; bar_h = size*0.085
+    bw = half*0.70; inner = half*0.30
+    outer = (f'M {ax:.2f} {top:.2f} L {ax+half:.2f} {bot:.2f} '
+             f'L {ax+half-stroke:.2f} {bot:.2f} L {ax:.2f} {top+stroke*1.9:.2f} '
+             f'L {ax-half+stroke:.2f} {bot:.2f} L {ax-half:.2f} {bot:.2f} Z')
+    bar = (f'M {ax-bw:.2f} {bar_y:.2f} L {ax-inner:.2f} {bar_y:.2f} '
+           f'L {ax-inner:.2f} {bar_y-bar_h*0.9:.2f} L {ax+inner:.2f} {bar_y-bar_h*0.9:.2f} '
+           f'L {ax+inner:.2f} {bar_y:.2f} L {ax+bw:.2f} {bar_y:.2f} '
+           f'L {ax+bw:.2f} {bar_y+bar_h:.2f} L {ax-bw:.2f} {bar_y+bar_h:.2f} Z')
+    return f'<path fill="{color}" fill-rule="nonzero" d="{outer} {bar}"/>'
+
+def case(ox, oy, rot, fill, spine, edge):
+    x, y = cx+ox-cw/2, cy+oy-ch/2
+    r = h*0.02
+    return (f'<g transform="rotate({rot} {cx+ox:.2f} {cy+oy:.2f})">'
+            f'<rect x="{x:.2f}" y="{y:.2f}" width="{cw:.2f}" height="{ch:.2f}" rx="{r:.2f}" fill="{fill}"/>'
+            f'<rect x="{x:.2f}" y="{y:.2f}" width="{cw*0.105:.2f}" height="{ch:.2f}" rx="{r*0.5:.2f}" fill="{spine}"/>'
+            f'<rect x="{x:.2f}" y="{y:.2f}" width="{cw:.2f}" height="{ch*0.026:.2f}" rx="{r*0.5:.2f}" fill="{edge}"/>'
+            f'</g>')
+
+parts = []
+parts.append(case(-cw*0.115, ch*0.026, -13, "#4a3d29", "#6b5942", "#5d4c33"))
+parts.append(case(-cw*0.057, ch*0.013,  -6, "#6b5942", "#8a755a", "#7d6a4e"))
+parts.append(case(0, 0, 0, GOLD, CRIMSON, "#ddb162"))
+parts.append(letter_A(cx+cw*0.05, cy-ch*0.05, ch*0.41, "#0a0806"))
+
 print(f'<svg xmlns="http://www.w3.org/2000/svg" width="{w:g}" height="{h:g}" viewBox="0 0 {w:g} {h:g}">')
-# Emit each element on a single line so it can be spliced into the flat composite.
-# nonzero fill keeps the crossbar union with the legs instead of punching holes.
-print(f'  <path fill="#c8973a" fill-rule="nonzero" d="{outer} {bar}"/>')
-print(f'  <text x="{cx:.2f}" y="{word_y:.2f}" font-family="Playfair Display" font-style="italic" '
-      f'font-size="{word_size:.2f}" fill="#c8973a" text-anchor="middle">The Archive</text>')
+print('  ' + ''.join(parts))
 print('</svg>')
 PY
 }
@@ -98,6 +96,19 @@ print(f'<svg xmlns="http://www.w3.org/2000/svg" width="{w:g}" height="{h:g}">')
 print(f'  <rect x="{inset:g}" y="{inset:g}" width="{w-2*inset:g}" height="{h-2*inset:g}" '
       f'fill="none" stroke="{col}" stroke-width="{t:g}"/>')
 print('</svg>')
+PY
+}
+
+# Wordmark for the flat top-shelf image. The layered icon omits it: the stack
+# of cases carries the identity there, and tvOS renders the app name beneath
+# the icon anyway.
+wordmark_svg() { # W H
+  python3 - "$1" "$2" <<'PY'
+import sys
+w, h = float(sys.argv[1]), float(sys.argv[2])
+print(f'  <text x="{w/2:.1f}" y="{h*0.90:.1f}" font-family="Playfair Display" '
+      f'font-style="italic" font-size="{h*0.093:.1f}" fill="#c8973a" '
+      f'text-anchor="middle">The Archive</text>')
 PY
 }
 
@@ -160,11 +171,14 @@ make_imageset() { # dir W H
     # Compose background + border + mark into one flat SVG.
     { bg_svg "$1" "$2" | sed 's|</svg>||'
       border_svg "$1" "$2" | sed -n 's|.*\(<rect x=.*/>\).*|  \1|p'
-      mark_svg "$1" "$2" | sed -n -e 's|.*\(<path .*/>\).*|  \1|p' -e 's|.*\(<text .*</text>\).*|  \1|p'
+      # The mark emits every element on one line: the case groups followed by
+      # the letterform path. Take that whole line.
+      mark_svg "$1" "$2" | sed -n 's|^  \(<g transform.*\)$|  \1|p'
+      wordmark_svg "$1" "$2"
       echo '</svg>'
     } > "$TMP/composite.svg"
     # Guard: a failed splice would silently yield an icon missing an element.
-    grep -q '<path ' "$TMP/composite.svg" || { echo "ERROR: mark path missing from composite" >&2; exit 1; }
+    grep -q '<g transform' "$TMP/composite.svg" || { echo "ERROR: case stack missing from composite" >&2; exit 1; }
     grep -q '<rect x=' "$TMP/composite.svg" || { echo "ERROR: border missing from composite" >&2; exit 1; }
     grep -q '<text ' "$TMP/composite.svg" || { echo "ERROR: wordmark missing from composite" >&2; exit 1; }
     rasterize "$TMP/composite.svg" "$dir/$3" "$1" "$2"

@@ -61,6 +61,12 @@ struct DetailSheetView: View {
                         }
                         .padding(.top, 4)
 
+                        // Primary actions sit directly under the header: they
+                        // are what people come to this screen to do, and at the
+                        // bottom they sat below two chip grids that can be
+                        // several rows tall.
+                        actionRow
+
                         PerforationStrip()
 
                         // Genre chips
@@ -71,50 +77,6 @@ struct DetailSheetView: View {
                         // Watchlist chips
                         watchlistSection
 
-                        divider
-
-                        // Watched toggle
-                        Button {
-                            toggleWatched()
-                        } label: {
-                            Label(currentItem.watched ? "Mark as Unwatched" : "Mark as Watched",
-                                  systemImage: currentItem.watched ? "checkmark.circle.fill" : "circle")
-                                .font(ArchiveTheme.bodyFont(size: 22))
-                                .foregroundColor(currentItem.watched ? ArchiveTheme.accent : ArchiveTheme.textMuted)
-                        }
-
-                        // Open in Apple TV
-                        Button {
-                            openInAppleTV()
-                        } label: {
-                            Text("Open in Apple TV")
-                                .font(ArchiveTheme.bodyFont(size: 20).weight(.bold))
-                                .foregroundColor(.black)
-                                .frame(maxWidth: 360)
-                                .padding(.vertical, 16)
-                                .background(ArchiveTheme.accent)
-                                .cornerRadius(6)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Open \(currentItem.title) in Apple TV")
-
-                        // Remove. Same button shape as "Open in Apple TV", but
-                        // in the muted archival crimson rather than the system
-                        // destructive red, which is far too bright against the
-                        // sepia palette.
-                        Button {
-                            showRemoveConfirm = true
-                        } label: {
-                            Text("Remove from Library")
-                                .font(ArchiveTheme.bodyFont(size: 20).weight(.bold))
-                                .foregroundColor(ArchiveTheme.textPrimary)
-                                .frame(maxWidth: 360)
-                                .padding(.vertical, 16)
-                                .background(ArchiveTheme.accent2)
-                                .cornerRadius(6)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove \(currentItem.title) from library")
                     }
                     .padding(40)
                 }
@@ -133,6 +95,61 @@ struct DetailSheetView: View {
     }
 
     // MARK: - Subviews
+
+    /// The three primary actions, laid out in a row so they stay above the
+    /// fold rather than stacking and pushing the genre chips off screen.
+    private var actionRow: some View {
+        HStack(spacing: 16) {
+            Button {
+                openInAppleTV()
+            } label: {
+                Text("Open in Apple TV")
+                    .font(ArchiveTheme.bodyFont(size: 20).weight(.bold))
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(ArchiveTheme.accent)
+                    .cornerRadius(6)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open \(currentItem.title) in Apple TV")
+
+            Button {
+                toggleWatched()
+            } label: {
+                Label(currentItem.watched ? "Watched" : "Mark Watched",
+                      systemImage: currentItem.watched ? "checkmark.circle.fill" : "circle")
+                    .font(ArchiveTheme.bodyFont(size: 20).weight(.bold))
+                    .foregroundColor(currentItem.watched ? .black : ArchiveTheme.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(currentItem.watched ? ArchiveTheme.accent : ArchiveTheme.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(ArchiveTheme.border, lineWidth: currentItem.watched ? 0 : 1)
+                    )
+                    .cornerRadius(6)
+            }
+            .buttonStyle(.plain)
+
+            // Muted archival crimson rather than the system destructive red,
+            // which is far too bright against the sepia palette.
+            Button {
+                showRemoveConfirm = true
+            } label: {
+                Text("Remove")
+                    .font(ArchiveTheme.bodyFont(size: 20).weight(.bold))
+                    .foregroundColor(ArchiveTheme.textPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(ArchiveTheme.accent2)
+                    .cornerRadius(6)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(currentItem.title) from library")
+        }
+        .padding(.top, 4)
+    }
 
     private var divider: some View {
         FilmStripDivider()

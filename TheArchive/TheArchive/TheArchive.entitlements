@@ -10,5 +10,10 @@
 	<array>
 		<string>CloudKit</string>
 	</array>
+	<!-- Required for export: without it, exportArchive rejects the build with
+	     "requires a provisioning profile with the iCloud feature". App Store
+	     builds talk to the Production CloudKit environment. -->
+	<key>com.apple.developer.icloud-container-environment</key>
+	<string>Production</string>
 </dict>
 </plist>

@@ -197,7 +197,7 @@ JSON
 mkdir -p "$OUT"
 make_stack    "$OUT/App Icon - Small.imagestack"  400  240
 make_stack    "$OUT/App Icon - Large.imagestack" 1280  768
-make_imageset "$OUT/Top Shelf Image Wide.imageset" 1920 720
+make_imageset "$OUT/Top Shelf Image Wide.imageset" 2320 720
 
 cat > "$OUT/Contents.json" <<'JSON'
 {
@@ -218,7 +218,7 @@ cat > "$OUT/Contents.json" <<'JSON'
       "filename" : "Top Shelf Image Wide.imageset",
       "idiom" : "tv",
       "role" : "top-shelf-image-wide",
-      "size" : "1920x720"
+      "size" : "2320x720"
     }
   ],
   "info" : { "author" : "xcode", "version" : 1 }

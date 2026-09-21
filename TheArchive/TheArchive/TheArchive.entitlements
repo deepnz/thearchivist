@@ -15,5 +15,11 @@
 	     builds talk to the Production CloudKit environment. -->
 	<key>com.apple.developer.icloud-container-environment</key>
 	<string>Production</string>
+	<!-- tvOS requires aps-environment alongside icloud-services: CloudKit uses
+	     silent push to notify the app of remote changes. App Store Connect
+	     rejects the upload without it (90575), even though the app registers
+	     for no user-facing notifications of its own. -->
+	<key>aps-environment</key>
+	<string>production</string>
 </dict>
 </plist>

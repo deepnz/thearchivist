@@ -55,13 +55,24 @@ struct PosterCardView: View {
                     }
                     Spacer()
                     // Overlaid title, bottom-left (HTML .card-poster-title — Playfair italic on poster)
-                    HStack {
+                    HStack(alignment: .bottom) {
                         Text(item.title)
                             .font(ArchiveTheme.titleFont(size: 18))
                             .foregroundColor(ArchiveTheme.textPrimary)
                             .lineLimit(2)
                             .shadow(color: .black.opacity(0.8), radius: 4, y: 1)
-                        Spacer(minLength: 0)
+
+                        Spacer(minLength: 8)
+
+                        // Watched marker, bottom-right. Sits opposite the title
+                        // rather than top-right, where the genre tag already is.
+                        if item.watched {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(ArchiveTheme.accent)
+                                .shadow(color: .black.opacity(0.9), radius: 3)
+                                .accessibilityHidden(true)
+                        }
                     }
                 }
                 .padding(8)
@@ -101,6 +112,7 @@ struct PosterCardView: View {
         // Collapse the card's four Text descendants into one announcement.
         // Without this VoiceOver reads the catalog ID, genre and title instead.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(item.type == .film ? "Film" : "Series"): \(item.title), \(item.yearText)")
+        .accessibilityLabel("\(item.type == .film ? "Film" : "Series"): \(item.title), "
+                            + "\(item.yearText)\(item.watched ? ", watched" : "")")
     }
 }

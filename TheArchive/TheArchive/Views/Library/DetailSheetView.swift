@@ -28,13 +28,36 @@ struct DetailSheetView: View {
             ArchiveTheme.background.ignoresSafeArea()
 
             HStack(alignment: .top, spacing: 60) {
-                // Poster, without the overlaid title/catalog/genre chrome that
-                // the slate header beside it already shows.
-                PosterCardView(item: currentItem, showsOverlayChrome: false)
+                // Left column: a larger poster with the item's particulars
+                // beneath it. The poster alone left most of this column empty.
+                VStack(alignment: .leading, spacing: 22) {
+                    AsyncImage(url: URL(string: currentItem.artworkURL)) { phase in
+                        if let img = phase.image {
+                            img.resizable().scaledToFill()
+                        } else {
+                            ArchiveTheme.posterGradient(for: currentItem.title)
+                        }
+                    }
+                    .frame(width: 350, height: 525)
+                    .clipped()
+                    .overlay(Rectangle().stroke(ArchiveTheme.border, lineWidth: 1))
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        factRow("TYPE", currentItem.type == .film ? "Motion Picture"
+                                                                 : "Television Series")
+                        factRow("YEAR", currentItem.yearText)
+                        factRow("STATUS", currentItem.watched ? "Watched" : "Unwatched")
+                        factRow("ADDED", currentItem.dateAdded
+                            .formatted(.dateTime.day().month(.abbreviated).year()))
+                    }
+                    .frame(width: 350, alignment: .leading)
+
+                    Spacer(minLength: 0)
+                }
 
                 // Details. No ScrollView: with genres and watchlists side by
                 // side the whole sheet fits on one screen.
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 18) {
                     // Modal slate header — barbershop stripe + catalog marker + title + gold underline
                     VStack(alignment: .leading, spacing: 10) {
                         BarbershopStripe()
@@ -53,11 +76,8 @@ struct DetailSheetView: View {
                         Rectangle()
                             .fill(ArchiveTheme.accent)
                             .frame(width: 64, height: 2)
-                        Text("\(currentItem.yearText) · \(currentItem.type == .film ? "Motion Picture" : "Television Series")")
-                            .font(ArchiveTheme.monoFont(size: 19))
-                            .foregroundColor(ArchiveTheme.textMuted)
-                            .kerning(2)
-                            .padding(.top, 2)
+                        // Year and type are stated in the left column's fact
+                        // rows, so repeating them here would say it twice.
                     }
                     .padding(.top, 4)
 
@@ -69,32 +89,38 @@ struct DetailSheetView: View {
 
                     PerforationStrip()
 
-                    // Genres and watchlists sit side by side rather than
-                    // stacked. Stacked, the two chip grids ran past the
-                    // bottom of the screen and had to be scrolled; split,
-                    // everything fits and the empty right half is used.
-                    HStack(alignment: .top, spacing: 36) {
-                        genreSection
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .focusSection()
+                    // One flowing module across the full width, rather than two
+                    // fixed columns. A 38% column for content that varies from
+                    // zero to ten watchlists left most of that space empty; a
+                    // flow lets both groups take exactly the width they need.
+                    taggingModule
 
-                        Rectangle()
-                            .fill(ArchiveTheme.border)
-                            .frame(width: 1)
-                            .frame(maxHeight: .infinity)
+                    Spacer(minLength: 24)
 
-                        watchlistSection
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .focusSection()
+                    // Bottom anchor. Without it the content trailed off into
+                    // empty space with no closing edge; the rule and catalog
+                    // marker give the eye somewhere to land.
+                    VStack(alignment: .leading, spacing: 10) {
+                        PerforationStrip()
+                        HStack(spacing: 10) {
+                            Text("THE ARCHIVE")
+                                .font(ArchiveTheme.monoFont(size: 13))
+                                .foregroundColor(ArchiveTheme.textMuted)
+                                .kerning(4)
+                            Spacer()
+                            Text(currentItem.catalogID)
+                                .font(ArchiveTheme.monoFont(size: 13))
+                                .foregroundColor(ArchiveTheme.textMuted)
+                                .kerning(3)
+                        }
                     }
-                    .fixedSize(horizontal: false, vertical: true)
-
-                    Spacer(minLength: 0)
                 }
                 .padding(40)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .padding(60)
+            .padding(.horizontal, 60)
+            .padding(.top, 72)
+            .padding(.bottom, 24)
         }
         .alert("Remove from Library", isPresented: $showRemoveConfirm) {
             Button("Remove", role: .destructive) { removeItem() }
@@ -111,16 +137,25 @@ struct DetailSheetView: View {
 
     /// The three primary actions, laid out in a row so they stay above the
     /// fold rather than stacking and pushing the genre chips off screen.
+    ///
+    /// The widths are weighted rather than equal thirds: three identical
+    /// buttons gave Remove the same visual weight as Open in Apple TV, with
+    /// only colour separating a destructive action from the primary one.
     private var actionRow: some View {
-        HStack(spacing: 16) {
+        // Explicit fractions rather than layoutPriority: priority let the
+        // primary button consume the row and collapsed the others to squares.
+        GeometryReader { geo in
+            let gap: CGFloat = 16
+            let usable = geo.size.width - gap * 2
+            HStack(spacing: gap) {
             Button {
                 openInAppleTV()
             } label: {
                 Text("Open in Apple TV")
                     .font(ArchiveTheme.bodyFont(size: 20).weight(.bold))
                     .foregroundColor(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .frame(width: usable * 0.44)
+                    .padding(.vertical, 20)
                     .background(ArchiveTheme.accent)
                     .cornerRadius(6)
             }
@@ -134,8 +169,8 @@ struct DetailSheetView: View {
                       systemImage: currentItem.watched ? "checkmark.circle.fill" : "circle")
                     .font(ArchiveTheme.bodyFont(size: 20).weight(.bold))
                     .foregroundColor(currentItem.watched ? .black : ArchiveTheme.textPrimary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
+                    .frame(width: usable * 0.33)
+                    .padding(.vertical, 20)
                     .background(currentItem.watched ? ArchiveTheme.accent : ArchiveTheme.surface)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
@@ -151,52 +186,110 @@ struct DetailSheetView: View {
                 showRemoveConfirm = true
             } label: {
                 Text("Remove")
-                    .font(ArchiveTheme.bodyFont(size: 20).weight(.bold))
-                    .foregroundColor(ArchiveTheme.textPrimary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(ArchiveTheme.accent2)
-                    .cornerRadius(6)
+                    .font(ArchiveTheme.bodyFont(size: 18))
+                    .foregroundColor(ArchiveTheme.accent2)
+                    .frame(width: usable * 0.23)
+                    .padding(.vertical, 20)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(ArchiveTheme.accent2.opacity(0.8), lineWidth: 1)
+                    )
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove \(currentItem.title) from library")
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(currentItem.title) from library")
+
+                Spacer(minLength: 0)
+            }
         }
+        .frame(height: 68)
         .padding(.top, 4)
+    }
+
+    /// One labelled fact in the left column, under the poster.
+    private func factRow(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(ArchiveTheme.monoFont(size: 14))
+                .foregroundColor(ArchiveTheme.textMuted)
+                .kerning(3)
+            Text(value)
+                .font(ArchiveTheme.bodyFont(size: 25))
+                .foregroundColor(ArchiveTheme.textPrimary)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var divider: some View {
         FilmStripDivider()
     }
 
-    private var genreSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("GENRES")
-                .font(ArchiveTheme.monoFont(size: 18))
-                .foregroundColor(ArchiveTheme.textMuted)
-                .kerning(3)
+    /// Genres and watchlists as one flowing module.
+    ///
+    /// These were two fixed columns split 62/38. That gave a constant share of
+    /// the width to watchlists, whose count varies from zero to ten, so the
+    /// column sat mostly empty in the common case. Flowing them lets each group
+    /// take the width it needs and keeps the block anchored to one bottom edge.
+    ///
+    /// Each group is its own focus section: without that, the D-pad jumps to
+    /// whichever chip is geometrically nearest across the boundary, which in a
+    /// ragged flow is unpredictable.
+    private var taggingModule: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 12) {
+                sectionLabel("GENRES")
 
-            FlowLayout(spacing: 8) {
-                let allGenres = predefinedGenres + currentItem.genres.filter { !predefinedGenres.contains($0) }
-                ForEach(allGenres, id: \.self) { genre in
-                    genreChip(genre)
+                FlowLayout(spacing: 8) {
+                    let allGenres = predefinedGenres
+                        + currentItem.genres.filter { !predefinedGenres.contains($0) }
+                    ForEach(allGenres, id: \.self) { genre in
+                        genreChip(genre)
+                    }
+                }
+
+                TextField("Custom genre…", text: $customGenreInput)
+                    .font(ArchiveTheme.monoFont(size: 18))
+                    .foregroundColor(ArchiveTheme.textPrimary)
+                    .onSubmit { addCustomGenre() }
+                    .frame(maxWidth: 420)
+            }
+            .focusSection()
+
+            FilmStripDivider()
+
+            VStack(alignment: .leading, spacing: 12) {
+                sectionLabel("WATCHLISTS")
+
+                if watchlistVM.watchlists.isEmpty {
+                    Text("No lists yet — create one in the Watchlists tab")
+                        .font(ArchiveTheme.monoFont(size: 18))
+                        .foregroundColor(ArchiveTheme.textMuted)
+                } else {
+                    FlowLayout(spacing: 8) {
+                        ForEach(watchlistVM.watchlists) { list in
+                            watchlistChip(list)
+                        }
+                    }
                 }
             }
-
-            // Custom genre input
-            TextField("Custom genre…", text: $customGenreInput)
-                .font(ArchiveTheme.monoFont(size: 20))
-                .foregroundColor(ArchiveTheme.textPrimary)
-                .onSubmit { addCustomGenre() }
+            .focusSection()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(ArchiveTheme.monoFont(size: 16))
+            .foregroundColor(ArchiveTheme.textMuted)
+            .kerning(3)
     }
 
     private func genreChip(_ genre: String) -> some View {
         let isSelected = currentItem.genres.contains(genre)
         return Button(genre) { toggleGenre(genre) }
-            .font(ArchiveTheme.monoFont(size: 20))
+            .font(ArchiveTheme.monoFont(size: 17))
             .foregroundColor(isSelected ? ArchiveTheme.accent : ArchiveTheme.textMuted)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 3)
                     .stroke(isSelected ? ArchiveTheme.accent.opacity(0.6) : ArchiveTheme.border, lineWidth: 1)
@@ -206,34 +299,13 @@ struct DetailSheetView: View {
             .accessibilityAddTraits(.isToggle)
     }
 
-    private var watchlistSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("WATCHLISTS")
-                .font(ArchiveTheme.monoFont(size: 18))
-                .foregroundColor(ArchiveTheme.textMuted)
-                .kerning(3)
-
-            if watchlistVM.watchlists.isEmpty {
-                Text("No lists yet — create one in the Watchlists tab")
-                    .font(ArchiveTheme.monoFont(size: 20))
-                    .foregroundColor(ArchiveTheme.textMuted)
-            } else {
-                FlowLayout(spacing: 8) {
-                    ForEach(watchlistVM.watchlists) { list in
-                        watchlistChip(list)
-                    }
-                }
-            }
-        }
-    }
-
     private func watchlistChip(_ list: Watchlist) -> some View {
         let isIn = list.itemIDs.contains(currentItem.iTunesID)
         return Button(list.name) { toggleWatchlist(list) }
-            .font(ArchiveTheme.monoFont(size: 20))
+            .font(ArchiveTheme.monoFont(size: 17))
             .foregroundColor(isIn ? ArchiveTheme.accent2 : ArchiveTheme.textMuted)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 3)
                     .stroke(isIn ? ArchiveTheme.accent2.opacity(0.6) : ArchiveTheme.border, lineWidth: 1)

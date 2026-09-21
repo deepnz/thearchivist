@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generates the tvOS layered app icon + top shelf image for The Archive.
+# Generates the tvOS layered app icon + top shelf image for The Archivist.
 # Layers (back to front): background -> border -> letterform "A" + wordmark
 # Colors come from ArchiveTheme: background #0a0806, border #2a2218, accent #c8973a
 #
@@ -108,7 +108,7 @@ import sys
 w, h = float(sys.argv[1]), float(sys.argv[2])
 print(f'  <text x="{w/2:.1f}" y="{h*0.90:.1f}" font-family="Playfair Display" '
       f'font-style="italic" font-size="{h*0.093:.1f}" fill="#c8973a" '
-      f'text-anchor="middle">The Archive</text>')
+      f'text-anchor="middle">The Archivist</text>')
 PY
 }
 

@@ -169,7 +169,7 @@ struct ArchiveRowFocusStyle: ButtonStyle {
     }
 }
 
-// App wordmark: "The Archive" in Playfair italic gold over a letterspaced
+// App wordmark: "The Archivist" in Playfair italic gold over a letterspaced
 // Courier tagline. Recovered from the sign-in screen, which was removed along
 // with Sign in with Apple, taking the app's only branding with it.
 struct ArchiveWordmark: View {
@@ -179,7 +179,7 @@ struct ArchiveWordmark: View {
 
     var body: some View {
         VStack(alignment: alignment, spacing: 4) {
-            Text("The Archive")
+            Text("The Archivist")
                 .font(ArchiveTheme.titleFont(size: titleSize))
                 .foregroundColor(ArchiveTheme.accent)
             Text("YOUR PERSONAL COLLECTION")
@@ -188,6 +188,6 @@ struct ArchiveWordmark: View {
                 .kerning(3)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("The Archive, your personal collection")
+        .accessibilityLabel("The Archivist, your personal collection")
     }
 }

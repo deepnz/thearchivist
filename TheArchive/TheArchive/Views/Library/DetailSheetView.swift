@@ -103,7 +103,7 @@ struct DetailSheetView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         PerforationStrip()
                         HStack(spacing: 10) {
-                            Text("THE ARCHIVE")
+                            Text("THE ARCHIVIST")
                                 .font(ArchiveTheme.monoFont(size: 13))
                                 .foregroundColor(ArchiveTheme.textMuted)
                                 .kerning(4)

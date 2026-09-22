@@ -15,16 +15,11 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
-	<!-- The app's only encryption is HTTPS to the iTunes Search API and
-	     CloudKit's own transport, both exempt because they come from Apple's
-	     frameworks. Declaring it here answers App Store Connect's export
-	     compliance prompt at upload, so builds arrive without the
-	     "Missing Compliance" flag. -->
+	<string>3</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSiCloudUsageDescription</key>
-	<string>The Archive uses iCloud to sync your library across your devices.</string>
+	<string>The Archivist uses iCloud to sync your library across your devices.</string>
 	<key>TVTopShelfImage</key>
 	<dict>
 		<key>TVTopShelfPrimaryImageWide</key>

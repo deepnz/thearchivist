@@ -57,6 +57,11 @@ struct TheArchiveApp: App {
             .environmentObject(searchVM)
             .environmentObject(watchlistVM)
             .task {
+                // Resolved before the user can reach Search: every request in
+                // that path needs the storefront, and StoreKit only offers it
+                // asynchronously. Until this lands the device locale stands in.
+                await Storefront.refresh()
+
                 // Written on every launch so the dashboard shows whether the
                 // device can reach CloudKit at all.
                 AppEventLog.record(.launch, message: "app launched")

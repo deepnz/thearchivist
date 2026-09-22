@@ -15,12 +15,14 @@ enum iTunesLookupService {
     /// costs one request rather than one per title.
     private static let batchSize = 20
 
-    static func lookupURL(ids: [String]) -> URL? {
+    /// `country` must match the storefront the IDs came from. A US ID returns
+    /// nothing from a German lookup and vice versa.
+    static func lookupURL(ids: [String], country: String = Storefront.current) -> URL? {
         guard !ids.isEmpty else { return nil }
         var components = URLComponents(string: base)
         components?.queryItems = [
             URLQueryItem(name: "id", value: ids.joined(separator: ",")),
-            URLQueryItem(name: "country", value: "US"),
+            URLQueryItem(name: "country", value: country.uppercased()),
         ]
         return components?.url
     }

@@ -385,9 +385,13 @@ struct DetailSheetView: View {
         // letting Apple resolve it is the only option that works from the ID
         // the app stores.
         let kind = currentItem.type == .film ? "movie" : "tv-season"
+        // The storefront segment has to match the one the ID came from: a US
+        // id is meaningless in the German store, so a hardcoded "/us/" sent
+        // non-US users to a page that does not exist.
+        let region = Storefront.deepLinkRegion
         let candidates = [
-            "https://itunes.apple.com/us/\(kind)/id\(currentItem.iTunesID)",
-            "https://tv.apple.com/us/\(kind)/id\(currentItem.iTunesID)",
+            "https://itunes.apple.com/\(region)/\(kind)/id\(currentItem.iTunesID)",
+            "https://tv.apple.com/\(region)/\(kind)/id\(currentItem.iTunesID)",
         ].compactMap(URL.init(string:))
 
         Task {

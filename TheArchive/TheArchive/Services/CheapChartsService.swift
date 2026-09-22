@@ -30,12 +30,16 @@ enum CheapChartsService {
         let type: MediaType
     }
 
-    static func searchURL(query: String, itemType: String = "all") -> URL? {
+    static func searchURL(
+        query: String,
+        itemType: String = "all",
+        country: String = Storefront.current
+    ) -> URL? {
         var components = URLComponents(string: base)
         components?.queryItems = [
             URLQueryItem(name: "action", value: "search"),
             URLQueryItem(name: "store", value: "itunes"),
-            URLQueryItem(name: "country", value: "us"),
+            URLQueryItem(name: "country", value: country),
             // "all" spans movies and seasons. The narrower "movies"/"seasons"
             // values work too, but a single call covering both keeps one
             // request per search.

@@ -144,7 +144,9 @@ struct SearchView: View {
             year: result.year,
             type: result.type,
             artworkURL: result.artworkURL,
-            genres: [],
+            // Apple's own genre seeds the tags, so a title arrives filterable
+            // rather than untagged. The detail sheet can change it.
+            genres: result.genre.map { [$0] } ?? [],
             watched: false,
             dateAdded: Date()
         )

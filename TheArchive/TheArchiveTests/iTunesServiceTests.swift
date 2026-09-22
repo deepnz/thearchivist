@@ -17,6 +17,9 @@ final class iTunesServiceTests: XCTestCase {
         XCTAssertFalse(url!.absoluteString.contains(" "))
     }
 
+    /// The app no longer searches this endpoint — see `CheapChartsServiceTests`
+    /// and `iTunesLookupServiceTests` for the path that is live. This case
+    /// stays because the response shape is shared with Lookup.
     func test_parseResponse_decodesFilm() throws {
         let json = """
         {"results": [{

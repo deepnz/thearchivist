@@ -21,9 +21,9 @@ Everything is client-side; session history lives in `localStorage`.
 | Timing | `performance.now()` session start/stop (per-word timestamps are a future feature) |
 | Analysis | Pure ES module (`js/analysis.js`), unit-tested with `node --test` |
 | AI coaching | Claude API (`claude-opus-4-8`) via `fetch`, BYO key, direct-browser access header |
-| Persistence | `localStorage` (`speakcoach.sessions.v1`, `speakcoach.apikey.v1`) |
+| Persistence | `localStorage` (`speakcoach.sessions.v1`, `speakcoach.apikey.v1`). Each session stores its transcript and coaching; if storage fills up, sessions beyond the 20 newest keep metrics but drop that text |
 
-No backend. No dependencies. `npm test` runs the analysis test suite with Node's
+No backend. No dependencies. `npm test` runs the analysis, storage, and chart test suites with Node's
 built-in test runner.
 
 ## Screens / states (single page)
@@ -36,8 +36,22 @@ built-in test runner.
 3. **Results** — stat tiles (score, WPM, fillers/min, vocabulary, longest fluent
    stretch, duration), per-filler breakdown chips, rule-based tips, transcript,
    "Get AI coaching" panel, "Practice again" button.
-4. **History** — list of past sessions (date, mode, duration, WPM, fillers/min,
-   score, color-coded); clear-history control. A score trend chart is a future feature.
+4. **History** — summary tiles (latest score with change vs previous, best,
+   average of last 5, session count), a score-over-time chart, and a table of
+   past sessions (date, mode, duration, WPM, fillers/min, color-coded score).
+   Selecting a chart point or a table date reopens that session in the results
+   view ("Session review") with its transcript and any saved AI coaching.
+
+### Score chart
+
+Single series, so no legend (the heading names it). 2px line with a 10% area
+wash, hairline gridlines at 0/25/50/75/100, first and last dates on the x axis,
+and a direct label only on the latest point. A crosshair tooltip snaps to the
+nearest session on hover; the chart is keyboard focusable (arrows, Home/End,
+Enter opens the session). The table below is its table view. The mark color is
+`--series` (#c98500), validated for lightness, chroma and 3:1 contrast against
+the card surface; text never uses the series color. Redrawn at container width
+on resize.
 
 Manual fallback: a textarea + duration field so a pasted transcript can still be
 analyzed. It is shown automatically when the browser has no speech API or when

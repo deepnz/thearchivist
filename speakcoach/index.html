@@ -72,7 +72,8 @@
     <!-- Results -->
     <section id="view-results" class="view hidden">
       <div class="card">
-        <h2>Session results</h2>
+        <h2 id="results-heading">Session results</h2>
+        <p id="results-meta" class="review-meta hidden"></p>
         <p id="result-warning" class="notice hidden" role="alert"></p>
         <div class="stat-grid" id="stat-grid"></div>
         <div id="filler-chips" class="filler-chips"></div>
@@ -85,7 +86,7 @@
           <p id="result-transcript"></p>
         </details>
 
-        <div class="ai-panel">
+        <div id="ai-panel" class="ai-panel">
           <h3>AI coaching <span class="badge">Claude</span></h3>
           <div id="ai-setup">
             <p class="fine-print">Uses your own Anthropic API key, stored only in this browser and sent only to api.anthropic.com.</p>
@@ -97,7 +98,10 @@
           <div id="ai-output" class="ai-output hidden"></div>
         </div>
 
-        <button id="again-btn" class="primary-btn">Practice again</button>
+        <div class="button-row">
+          <button id="back-history-btn" class="primary-btn secondary-btn hidden">← Back to history</button>
+          <button id="again-btn" class="primary-btn">Practice again</button>
+        </div>
       </div>
     </section>
 
@@ -106,12 +110,20 @@
       <div class="card">
         <h2>Your progress</h2>
         <div id="history-empty" class="hidden"><p>No sessions yet — go practice!</p></div>
+        <div id="history-content" class="hidden">
+          <div id="history-summary" class="stat-grid history-summary"></div>
+          <h3 class="chart-heading">Score over time</h3>
+          <div id="score-chart" class="chart-wrap"></div>
+          <p class="fine-print">Select a point, or a date in the table, to review that session.</p>
+        </div>
+        <div class="table-scroll">
         <table id="history-table" class="history-table hidden">
           <thead>
             <tr><th>When</th><th>Mode</th><th>Length</th><th>WPM</th><th>Fillers/min</th><th>Score</th></tr>
           </thead>
           <tbody></tbody>
         </table>
+        </div>
         <button id="clear-history-btn" class="ghost-btn danger hidden">Clear history</button>
       </div>
     </section>

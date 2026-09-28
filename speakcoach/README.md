@@ -18,8 +18,9 @@ and vocabulary — plus optional AI coaching from Claude.
   per-filler breakdown, vocabulary diversity, longest fluent stretch, and a 0–100 score
 - **Rule-based coaching tips** — plus optional qualitative coaching from Claude
   (`claude-opus-4-8`) using your own API key, stored only in your browser
-- **Session history** — saved in `localStorage`; nothing leaves your device except the
-  optional Claude call
+- **Progress history** — a score-over-time chart and summary stats; open any past session
+  to reread its transcript, results, and saved AI coaching. Stored in `localStorage`;
+  nothing leaves your device except the optional Claude call
 
 ## Running it
 
@@ -38,7 +39,7 @@ The analysis engine is a pure module with unit tests on Node's built-in runner:
 
 ```bash
 cd speakcoach
-npm test           # runs node --test test/analysis.test.mjs
+npm test           # runs node --test on test/*.test.mjs
 ```
 
 ## AI coaching setup
@@ -60,9 +61,10 @@ speakcoach/
 │   ├── transcription.js# Web Speech API wrapper with auto-restart
 │   ├── coach.js        # Claude API call (BYO key)
 │   ├── storage.js      # localStorage sessions + key
+│   ├── chart.js        # score-over-time SVG chart
 │   ├── prompts.js      # impromptu topics
 │   └── app.js          # UI controller
-├── test/analysis.test.mjs
+├── test/              # analysis, storage, chart unit tests
 └── docs/               # PROMPT.md (origin prompt), DESIGN_SPEC.md, future-features.md
 ```
 

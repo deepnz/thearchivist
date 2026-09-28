@@ -1,8 +1,11 @@
 import { analyze, tips } from './analysis.js';
 import { speechSupported, Transcriber } from './transcription.js';
 import { getCoaching } from './coach.js';
-import { loadSessions, saveSession, clearSessions, loadApiKey, saveApiKey } from './storage.js';
+import {
+  loadSessions, getSession, saveSession, updateSession, clearSessions, loadApiKey, saveApiKey,
+} from './storage.js';
 import { randomPrompt } from './prompts.js';
+import { renderScoreChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -31,7 +34,7 @@ const state = {
   timerInterval: null,
   transcriber: null,
   recording: false,
-  lastResult: null, // { transcript, metrics, mode, topic }
+  current: null, // session shown on the results view: { id?, at, mode, topic, transcript, metrics, coaching? }
 };
 
 function show(viewName) {
@@ -216,12 +219,39 @@ function statTile({ value, label, sub, hero }) {
   return tile;
 }
 
-function finishSession(transcript, durationSeconds, { warning } = {}) {
-  const metrics = analyze(transcript, durationSeconds);
-  state.lastResult = { transcript, metrics, mode: state.mode, topic: state.mode === 'impromptu' ? state.topic : null };
+function formatWhen(iso) {
+  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
 
-  const grid = $('stat-grid');
-  grid.replaceChildren(
+function modeLabel(mode) {
+  return mode === 'impromptu' ? 'Impromptu' : 'Free talk';
+}
+
+function finishSession(transcript, durationSeconds, { warning } = {}) {
+  const session = {
+    at: new Date().toISOString(),
+    mode: state.mode,
+    topic: state.mode === 'impromptu' ? state.topic : null,
+    transcript,
+    metrics: analyze(transcript, durationSeconds),
+  };
+  const saved = saveSession(session);
+  const warnings = [warning, saved ? null : "This session couldn't be saved to history (browser storage is blocked or full)."];
+  renderResults(saved || session, { warnings });
+}
+
+// Renders a session on the results view — freshly recorded, or reopened from History.
+function renderResults(session, { warnings = [], fromHistory = false } = {}) {
+  state.current = session;
+  const { metrics } = session;
+
+  $('results-heading').textContent = fromHistory ? 'Session review' : 'Session results';
+  const meta = [formatWhen(session.at), modeLabel(session.mode), session.topic ? `“${session.topic}”` : null]
+    .filter(Boolean).join(' · ');
+  $('results-meta').textContent = meta;
+  $('results-meta').classList.toggle('hidden', !fromHistory);
+
+  $('stat-grid').replaceChildren(
     statTile({ value: metrics.score, label: 'Score / 100', hero: true }),
     statTile({ value: metrics.wpm, label: 'Words per min', sub: 'target 130–170' }),
     statTile({ value: metrics.fillersPerMinute, label: 'Fillers / min', sub: `${metrics.fillerCount} total` }),
@@ -249,24 +279,36 @@ function finishSession(transcript, durationSeconds, { warning } = {}) {
     }),
   );
 
-  $('result-transcript').textContent = transcript || '(empty)';
-  $('ai-output').classList.add('hidden');
-  $('ai-output').textContent = '';
+  const hasTranscript = typeof session.transcript === 'string';
+  let transcriptText = session.transcript || '(empty)';
+  if (!hasTranscript) {
+    transcriptText = session.trimmed
+      ? 'The transcript for this older session was removed to free up browser storage.'
+      : 'This session was recorded before transcripts were saved.';
+  }
+  $('result-transcript').textContent = transcriptText;
+
+  // Coaching needs the transcript; a saved coaching result is shown as-is.
+  $('ai-panel').classList.toggle('hidden', !hasTranscript && !session.coaching);
+  $('ai-setup').classList.toggle('hidden', !hasTranscript);
+  $('get-coaching-btn').textContent = session.coaching ? 'Get fresh coaching' : 'Get AI coaching';
+  $('ai-output').classList.remove('error');
+  $('ai-output').textContent = session.coaching || '';
+  $('ai-output').classList.toggle('hidden', !session.coaching);
   $('api-key-input').value = loadApiKey();
 
-  const saved = saveSession({
-    at: new Date().toISOString(),
-    mode: state.lastResult.mode,
-    topic: state.lastResult.topic,
-    metrics,
-  });
+  const shownWarnings = warnings.filter(Boolean);
+  $('result-warning').textContent = shownWarnings.join(' ');
+  $('result-warning').classList.toggle('hidden', shownWarnings.length === 0);
 
-  const warnings = [warning, saved ? null : "This session couldn't be saved to history (browser storage is blocked or full)."]
-    .filter(Boolean);
-  $('result-warning').textContent = warnings.join(' ');
-  $('result-warning').classList.toggle('hidden', warnings.length === 0);
-
+  $('back-history-btn').classList.toggle('hidden', !fromHistory);
   show('results');
+  window.scrollTo(0, 0);
+}
+
+function openSession(id) {
+  const session = getSession(id);
+  if (session) renderResults(session, { fromHistory: true });
 }
 
 $('again-btn').addEventListener('click', () => {
@@ -274,12 +316,15 @@ $('again-btn').addEventListener('click', () => {
   show('setup');
 });
 
+$('back-history-btn').addEventListener('click', showHistory);
+
 /* ---------- AI coaching ---------- */
 
 $('get-coaching-btn').addEventListener('click', async () => {
   const apiKey = $('api-key-input').value.trim();
   if (!apiKey) { alert('Enter your Anthropic API key first.'); return; }
-  if (!state.lastResult) return;
+  const session = state.current;
+  if (typeof session?.transcript !== 'string') return;
   saveApiKey(apiKey);
 
   const btn = $('get-coaching-btn');
@@ -291,23 +336,26 @@ $('get-coaching-btn').addEventListener('click', async () => {
 
   let started = false;
   try {
-    await getCoaching({
+    const coaching = await getCoaching({
       apiKey,
-      transcript: state.lastResult.transcript,
-      metrics: state.lastResult.metrics,
-      mode: state.lastResult.mode,
-      topic: state.lastResult.topic,
+      transcript: session.transcript,
+      metrics: session.metrics,
+      mode: session.mode,
+      topic: session.topic,
       onText: (chunk) => {
         if (!started) { out.textContent = ''; started = true; }
         out.append(chunk);
       },
     });
+    session.coaching = coaching;
+    // Keep the coaching with the session so it can be reread from History.
+    if (session.id) updateSession(session.id, { coaching });
   } catch (err) {
     out.classList.add('error');
     out.textContent = `Coaching failed: ${err.message}`;
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Get AI coaching';
+    btn.textContent = session.coaching ? 'Get fresh coaching' : 'Get AI coaching';
   }
 });
 
@@ -319,23 +367,38 @@ function scoreClass(score) {
   return 'score-low';
 }
 
-function renderHistory() {
-  const sessions = loadSessions();
-  const empty = sessions.length === 0;
-  $('history-empty').classList.toggle('hidden', !empty);
-  $('history-table').classList.toggle('hidden', empty);
-  $('clear-history-btn').classList.toggle('hidden', empty);
+function renderHistorySummary(sessions) {
+  // sessions are newest first
+  const scores = sessions.map((s) => s.metrics.score);
+  const recent = scores.slice(0, 5);
+  const average = Math.round(recent.reduce((a, b) => a + b, 0) / recent.length);
+  const previous = scores[1];
+  const delta = previous === undefined ? null : scores[0] - previous;
+  $('history-summary').replaceChildren(
+    statTile({
+      value: scores[0],
+      label: 'Latest score',
+      sub: delta === null ? 'first session' : `${delta > 0 ? '+' : delta < 0 ? '−' : '±'}${Math.abs(delta)} vs previous`,
+      hero: true,
+    }),
+    statTile({ value: Math.max(...scores), label: 'Best score' }),
+    statTile({ value: average, label: `Average, last ${recent.length}` }),
+    statTile({ value: sessions.length, label: sessions.length === 1 ? 'Session' : 'Sessions' }),
+  );
+}
 
+function renderHistoryTable(sessions) {
   const rows = sessions.map((s) => {
     const tr = document.createElement('tr');
-    const when = new Date(s.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-    const cells = [
-      when,
-      s.mode === 'impromptu' ? 'Impromptu' : 'Free talk',
-      formatTime(s.metrics.durationSeconds),
-      s.metrics.wpm,
-      s.metrics.fillersPerMinute,
-    ];
+    const whenTd = document.createElement('td');
+    const link = document.createElement('button');
+    link.className = 'row-link';
+    link.textContent = formatWhen(s.at);
+    link.setAttribute('aria-label', `Review session from ${formatWhen(s.at)}, score ${s.metrics.score}`);
+    whenTd.append(link);
+    tr.append(whenTd);
+
+    const cells = [modeLabel(s.mode), formatTime(s.metrics.durationSeconds), s.metrics.wpm, s.metrics.fillersPerMinute];
     tr.append(...cells.map((c) => {
       const td = document.createElement('td');
       td.textContent = c;
@@ -345,17 +408,46 @@ function renderHistory() {
     scoreTd.textContent = s.metrics.score;
     scoreTd.className = scoreClass(s.metrics.score);
     tr.append(scoreTd);
+
+    tr.addEventListener('click', () => openSession(s.id));
     return tr;
   });
   $('history-table').querySelector('tbody').replaceChildren(...rows);
 }
 
-$('nav-practice').addEventListener('click', () => { if (!state.recording) show('setup'); });
-$('nav-history').addEventListener('click', () => {
+function renderHistory() {
+  // Newest first by date, so the tiles, table and chart always agree even if
+  // save order and timestamps ever diverge (e.g. a changed device clock).
+  const sessions = loadSessions().sort((a, b) => new Date(b.at) - new Date(a.at));
+  const empty = sessions.length === 0;
+  $('history-empty').classList.toggle('hidden', !empty);
+  $('history-content').classList.toggle('hidden', empty);
+  $('history-table').classList.toggle('hidden', empty);
+  $('clear-history-btn').classList.toggle('hidden', empty);
+  if (empty) return;
+
+  renderHistorySummary(sessions);
+  renderHistoryTable(sessions);
+  renderScoreChart($('score-chart'), sessions, { onSelect: openSession });
+}
+
+function showHistory() {
   if (state.recording) return;
-  renderHistory();
+  // Show first so the chart can measure its container width.
   show('history');
+  renderHistory();
+}
+
+// The chart is drawn at the container's pixel width; redraw when that changes.
+let resizeFrame = null;
+window.addEventListener('resize', () => {
+  if (views.history.classList.contains('hidden')) return;
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => renderScoreChart($('score-chart'), loadSessions(), { onSelect: openSession }));
 });
+
+$('nav-practice').addEventListener('click', () => { if (!state.recording) show('setup'); });
+$('nav-history').addEventListener('click', showHistory);
 $('clear-history-btn').addEventListener('click', () => {
   if (confirm('Delete all saved sessions?')) { clearSessions(); renderHistory(); }
 });

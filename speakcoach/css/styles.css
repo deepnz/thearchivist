@@ -10,6 +10,7 @@
   --accent-soft: rgba(245, 185, 66, 0.14);
   --danger: #e5636c;
   --good: #6fce8f;
+  --series: #c98500; /* chart mark color; passes the dataviz checks on --bg-card */
   --border: #262d38;
   --radius: 12px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -124,7 +125,7 @@ textarea, input[type="number"], input[type="password"] {
   background: var(--bg-inset); border: 1px solid var(--border);
   border-radius: 10px; padding: 14px; text-align: center;
 }
-.stat-tile .value { font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stat-tile .value { font-size: 1.8rem; font-weight: 800; }
 .stat-tile .label { color: var(--text-dim); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .stat-tile.hero { border-color: var(--accent); }
 .stat-tile.hero .value { color: var(--accent); font-size: 2.4rem; }
@@ -166,10 +167,53 @@ textarea, input[type="number"], input[type="password"] {
 .history-table .score-mid { color: var(--accent); font-weight: 700; }
 .history-table .score-low { color: var(--danger); font-weight: 700; }
 
+.history-table tbody tr { cursor: pointer; }
+.history-table tbody tr:hover td { background: var(--bg-inset); }
+.row-link {
+  background: none; border: none; padding: 0; font: inherit; color: var(--text);
+  text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 3px; cursor: pointer;
+}
+.row-link:hover, .row-link:focus-visible { text-decoration-color: var(--accent); }
+
+/* Score chart. Marks use --series (validated against the card surface); text
+   stays in text tokens. */
+.history-summary { margin-bottom: 20px; }
+.chart-wrap { position: relative; margin-bottom: 8px; }
+.chart-heading { font-size: 1rem; margin: 0 0 8px; }
+.score-chart { display: block; max-width: 100%; }
+.score-chart:focus { outline: none; }
+.score-chart:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.score-chart .grid { stroke: var(--border); stroke-width: 1; }
+.score-chart .tick { fill: var(--text-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+.score-chart .area { fill: var(--series); fill-opacity: 0.1; }
+.score-chart .line { fill: none; stroke: var(--series); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.score-chart .dot { fill: var(--series); stroke: var(--bg-card); stroke-width: 2; }
+.score-chart .crosshair { stroke: var(--text-dim); stroke-width: 1; }
+.score-chart .end-label { fill: var(--text); font-size: 13px; font-weight: 600; }
+.score-chart .hit { fill: transparent; cursor: pointer; }
+.chart-empty { color: var(--text-dim); font-style: italic; padding: 18px 0; }
+.chart-tooltip {
+  position: absolute; pointer-events: none; white-space: nowrap;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 0.8rem; color: var(--text-dim);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.chart-tooltip strong { color: var(--text); font-size: 1.1rem; }
+
+.review-meta { color: var(--text-dim); font-size: 0.88rem; margin: -8px 0 16px; }
+.button-row { display: flex; gap: 12px; }
+.button-row .primary-btn { flex: 1; }
+.secondary-btn { background: var(--bg-inset); color: var(--text); border: 1px solid var(--border); }
+
 .site-footer { text-align: center; padding: 18px; color: var(--text-dim); font-size: 0.8rem; }
 .site-footer a { color: var(--text-dim); }
+
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.history-table td, .history-table th { white-space: nowrap; }
 
 @media (max-width: 520px) {
   .card { padding: 18px; }
   .timer { font-size: 3.2rem; }
+  .history-table { font-size: 0.85rem; }
+  .history-table th, .history-table td { padding: 8px 6px; }
 }

@@ -7,8 +7,9 @@ Ideas noted during planning — not in scope for v1.
 - **Pace timeline** — WPM sparkline across the talk to spot rushing/dragging sections.
 - **Pause analysis** — detect long silences from recognition gaps; distinguish
   strategic pauses from stalls.
-- **Context-aware filler detection** — only count "like/so/well/right" when used as
-  fillers, not as content words.
+- **Score trend chart** — sparkline of score over time on the History view.
+- **Review past sessions** — save the transcript with each session and open a
+  history row to see its full results again.
 - **Cloud sync** — optional account with cross-device history (mirrors TheArchive's
   CloudKit pattern; would likely be a small backend or Supabase).
 - **Speech drills library** — tongue twisters, pausing drills, "no filler" gauntlet

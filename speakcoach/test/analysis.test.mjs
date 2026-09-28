@@ -95,6 +95,50 @@ test('tips names the dominant filler when rate is high', () => {
   assert.ok(t.some((tip) => tip.includes('"um"')));
 });
 
+test('tokenize keeps curly apostrophes and drops stray hyphens', () => {
+  assert.deepEqual(tokenize('It’s what I’d do - really'), ["it's", 'what', "i'd", 'do', 'really']);
+});
+
+test('tokenize keeps accented and non-Latin words intact', () => {
+  assert.deepEqual(tokenize('Déjà vu au café'), ['déjà', 'vu', 'au', 'café']);
+  assert.deepEqual(tokenize('こんにちは 世界'), ['こんにちは', '世界']);
+});
+
+test('content uses of like/so/right/kind of are not fillers', () => {
+  const m = analyze('I would like to say that is right so what kind of car is it', 10);
+  assert.deepEqual(m.fillerBreakdown, {});
+  const clean = analyze('It looks like rain so that we stay in. What kind of day is this', 10);
+  assert.equal(clean.fillerCount, 0);
+});
+
+test('position-sensitive fillers count at clause boundaries', () => {
+  const m = analyze('So, we shipped it. Well, it was like, fine, right?', 10);
+  assert.equal(m.fillerBreakdown.so, 1);
+  assert.equal(m.fillerBreakdown.well, 1);
+  assert.equal(m.fillerBreakdown.like, 1);
+  assert.equal(m.fillerBreakdown.right, 1);
+});
+
+test('hedge phrases count when not after a determiner', () => {
+  const { counts } = findFillers(tokenize('it was kind of sort of okay you know'));
+  assert.equal(counts['kind of'], 1);
+  assert.equal(counts['sort of'], 1);
+  assert.equal(counts['you know'], 1);
+});
+
+test('vocabularyDiversity does not penalize longer talks (MATTR)', () => {
+  // 750 tokens cycling through 100 words: raw ratio would be 0.13.
+  const long = Array.from({ length: 750 }, (_, i) => `w${i % 100}`);
+  assert.equal(vocabularyDiversity(long), 1);
+  const short = Array.from({ length: 150 }, (_, i) => `w${i % 100}`);
+  assert.equal(vocabularyDiversity(short), 1);
+});
+
+test('analyze guards against invalid durations', () => {
+  assert.equal(analyze('one two three', -30).durationSeconds, 1);
+  assert.equal(analyze('one two three', NaN).durationSeconds, 1);
+});
+
 test('tips praises zero fillers', () => {
   const words = Array.from({ length: 150 }, (_, i) => `word${i}`).join(' ');
   const t = tips(analyze(words, 60));

@@ -1,39 +1,119 @@
 // Pure speech-analysis engine. No DOM, no browser APIs — unit tested via node --test.
 
-export const FILLER_WORDS = [
-  'um', 'uh', 'er', 'ah', 'like', 'so', 'well', 'actually', 'basically',
-  'literally', 'right', 'okay', 'hmm',
-];
+// Always fillers, wherever they appear.
+const PURE_FILLERS = new Set(['um', 'umm', 'uh', 'uhh', 'er', 'erm', 'ah', 'hmm', 'mm']);
+
+// Verbal crutches: almost always filler in unscripted speech.
+const CRUTCH_WORDS = new Set(['actually', 'basically', 'literally']);
+
+// Only fillers at the start of a clause ("So, ...", "Well, ...").
+const CLAUSE_START_FILLERS = new Set(['so', 'well', 'okay']);
+// ...unless followed by one of these ("so that", "well known").
+const CLAUSE_START_EXCEPTIONS = {
+  so: new Set(['that', 'much', 'many', 'far', 'long']),
+  well: new Set(['as', 'done', 'known', 'being']),
+  okay: new Set(),
+};
+
+// Only fillers at a clause boundary ("..., right?", "Right, so").
+const BOUNDARY_FILLERS = new Set(['right', 'okay']);
+
+// "like" is a verb or preposition after these words ("I'd like", "looks like").
+const LIKE_NOT_FILLER_AFTER = new Set([
+  'would', "i'd", "you'd", "we'd", "they'd", "he'd", "she'd", 'i', 'you', 'we', 'they',
+  "don't", "didn't", "doesn't", 'to', 'feel', 'feels', 'felt', 'look', 'looks', 'looked',
+  'sound', 'sounds', 'sounded', 'seem', 'seems', 'seemed', 'something', 'anything',
+  'nothing', 'just', 'much', 'more', 'really',
+]);
 
 export const FILLER_PHRASES = ['you know', 'i mean', 'sort of', 'kind of'];
 
+// "kind of"/"sort of" is a real noun phrase after a determiner ("what kind of car").
+const HEDGE_NOT_FILLER_AFTER = new Set([
+  'what', 'this', 'that', 'the', 'a', 'any', 'some', 'every', 'one', 'same', 'different',
+  'which', 'all', 'these', 'those', 'no', 'each', 'another', 'right', 'wrong',
+]);
+const HEDGE_PHRASES = new Set(['sort of', 'kind of']);
+
 export const TARGET_WPM = { min: 130, max: 170 };
 
-export function tokenize(text) {
-  return (text || '')
+const CLAUSE_BREAK = /[.!?,;:\n…]+/;
+// Keep letters/numbers from any script plus inner apostrophes and hyphens.
+const NON_WORD = /[^\p{L}\p{N}'\-\s]/gu;
+
+function tokenizeClause(clause) {
+  return clause
     .toLowerCase()
-    .replace(/[^a-z0-9'\s-]/g, ' ')
+    .replace(/[‘’ʼ]/g, "'")
+    .replace(NON_WORD, ' ')
     .split(/\s+/)
+    .map((t) => t.replace(/^['-]+|['-]+$/g, ''))
     .filter(Boolean);
+}
+
+export function tokenize(text) {
+  return tokenizeClauses(text).tokens;
+}
+
+// Tokenize while recording which token indices start/end a clause, so
+// position-sensitive fillers ("So, ...", "..., right?") can be told apart.
+export function tokenizeClauses(text) {
+  const tokens = [];
+  const clauseStarts = new Set();
+  const clauseEnds = new Set();
+  for (const clause of (text || '').split(CLAUSE_BREAK)) {
+    const words = tokenizeClause(clause);
+    if (words.length === 0) continue;
+    clauseStarts.add(tokens.length);
+    tokens.push(...words);
+    clauseEnds.add(tokens.length - 1);
+  }
+  return { tokens, clauseStarts, clauseEnds };
+}
+
+function isFillerWord(tokens, i, clauseStarts, clauseEnds) {
+  const word = tokens[i];
+  if (PURE_FILLERS.has(word) || CRUTCH_WORDS.has(word)) return true;
+
+  const atStart = clauseStarts.has(i);
+  const atEnd = clauseEnds.has(i);
+
+  if (word === 'like') {
+    return i === 0 || !LIKE_NOT_FILLER_AFTER.has(tokens[i - 1]);
+  }
+  if (CLAUSE_START_FILLERS.has(word) && atStart && !CLAUSE_START_EXCEPTIONS[word].has(tokens[i + 1])) {
+    return true;
+  }
+  if (BOUNDARY_FILLERS.has(word) && (atStart || atEnd)) return true;
+  return false;
 }
 
 // Returns { tokens, fillerFlags, counts } where fillerFlags[i] is true when
 // tokens[i] is part of a filler word or phrase, and counts maps filler -> count.
-export function findFillers(tokens) {
+// clauseStarts/clauseEnds default to treating the whole input as one clause.
+export function findFillers(
+  tokens,
+  clauseStarts = new Set(tokens.length ? [0] : []),
+  clauseEnds = new Set(tokens.length ? [tokens.length - 1] : []),
+) {
   const fillerFlags = new Array(tokens.length).fill(false);
   const counts = {};
   const phrases = FILLER_PHRASES.map((p) => p.split(' '));
 
   for (let i = 0; i < tokens.length; i++) {
+    if (fillerFlags[i]) continue;
+    let matchedPhrase = false;
     for (const phrase of phrases) {
       if (i + phrase.length > tokens.length) continue;
-      if (phrase.every((w, j) => tokens[i + j] === w)) {
-        const key = phrase.join(' ');
-        counts[key] = (counts[key] || 0) + 1;
-        for (let j = 0; j < phrase.length; j++) fillerFlags[i + j] = true;
-      }
+      if (!phrase.every((w, j) => tokens[i + j] === w)) continue;
+      const key = phrase.join(' ');
+      if (HEDGE_PHRASES.has(key) && i > 0 && HEDGE_NOT_FILLER_AFTER.has(tokens[i - 1])) continue;
+      counts[key] = (counts[key] || 0) + 1;
+      for (let j = 0; j < phrase.length; j++) fillerFlags[i + j] = true;
+      matchedPhrase = true;
+      break;
     }
-    if (!fillerFlags[i] && FILLER_WORDS.includes(tokens[i])) {
+    if (!matchedPhrase && isFillerWord(tokens, i, clauseStarts, clauseEnds)) {
       counts[tokens[i]] = (counts[tokens[i]] || 0) + 1;
       fillerFlags[i] = true;
     }
@@ -51,9 +131,28 @@ export function longestFluentStretch(fillerFlags) {
   return best;
 }
 
-export function vocabularyDiversity(tokens) {
+export const DIVERSITY_WINDOW = 50;
+
+// Moving-average type-token ratio (MATTR): the mean distinct/total ratio over
+// every window of DIVERSITY_WINDOW tokens. Unlike a raw ratio it doesn't fall
+// as talks get longer. Short texts fall back to the plain ratio. O(n).
+export function vocabularyDiversity(tokens, window = DIVERSITY_WINDOW) {
   if (tokens.length === 0) return 0;
-  return new Set(tokens).size / tokens.length;
+  if (tokens.length <= window) return new Set(tokens).size / tokens.length;
+
+  const counts = new Map();
+  let distinct = 0;
+  const add = (w) => { const c = counts.get(w) || 0; if (c === 0) distinct++; counts.set(w, c + 1); };
+  const remove = (w) => { const c = counts.get(w); if (c === 1) distinct--; counts.set(w, c - 1); };
+
+  for (let i = 0; i < window; i++) add(tokens[i]);
+  let sum = distinct;
+  for (let i = window; i < tokens.length; i++) {
+    add(tokens[i]);
+    remove(tokens[i - window]);
+    sum += distinct;
+  }
+  return sum / (tokens.length - window + 1) / window;
 }
 
 function paceScore(wpm) {
@@ -75,9 +174,10 @@ function vocabScore(diversity) {
 
 // analyze(transcript, durationSeconds) -> metrics object
 export function analyze(transcript, durationSeconds) {
-  const tokens = tokenize(transcript);
-  const minutes = Math.max(durationSeconds, 1) / 60;
-  const { fillerFlags, counts } = findFillers(tokens);
+  const { tokens, clauseStarts, clauseEnds } = tokenizeClauses(transcript);
+  const seconds = Number.isFinite(durationSeconds) ? Math.max(durationSeconds, 1) : 1;
+  const minutes = seconds / 60;
+  const { fillerFlags, counts } = findFillers(tokens, clauseStarts, clauseEnds);
   const fillerCount = Object.values(counts).reduce((a, b) => a + b, 0);
 
   const wordCount = tokens.length;
@@ -92,7 +192,7 @@ export function analyze(transcript, durationSeconds) {
 
   return {
     wordCount,
-    durationSeconds: Math.round(durationSeconds),
+    durationSeconds: Math.round(seconds),
     wpm,
     fillerCount,
     fillersPerMinute,
@@ -125,7 +225,7 @@ export function tips(metrics) {
     out.push('Zero fillers detected — excellent fluency.');
   }
 
-  if (metrics.vocabularyDiversity < 0.4) {
+  if (metrics.wordCount >= 20 && metrics.vocabularyDiversity < 0.45) {
     out.push('Vocabulary repeated a lot — vary your word choice, especially sentence openers.');
   }
 

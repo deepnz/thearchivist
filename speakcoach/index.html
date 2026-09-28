@@ -42,9 +42,9 @@
           <button id="shuffle-topic" class="ghost-btn">↻ Shuffle topic</button>
         </div>
         <button id="start-btn" class="primary-btn">● Start recording</button>
+        <button id="show-manual-btn" class="link-btn">or paste a transcript instead</button>
         <div id="unsupported" class="hidden">
-          <p class="notice">Live transcription isn't supported in this browser (try Chrome, Edge, or Safari).
-            You can still paste or type a transcript below and analyze it.</p>
+          <p id="manual-notice" class="notice"></p>
           <textarea id="manual-transcript" rows="6" placeholder="Paste or type what you said…"></textarea>
           <div class="field-row">
             <label class="field-label" for="manual-duration">How long did you speak? (seconds)</label>
@@ -73,8 +73,11 @@
     <section id="view-results" class="view hidden">
       <div class="card">
         <h2>Session results</h2>
+        <p id="result-warning" class="notice hidden" role="alert"></p>
         <div class="stat-grid" id="stat-grid"></div>
         <div id="filler-chips" class="filler-chips"></div>
+        <p class="fine-print">Filler detection is heuristic: "like", "so", "well", "right" and "kind of" only count in
+          typical filler positions, but it can still miss or over-count now and then.</p>
         <h3>Coaching notes</h3>
         <ul id="tips-list" class="tips-list"></ul>
         <details class="transcript-details">

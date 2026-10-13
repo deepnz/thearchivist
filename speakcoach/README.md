@@ -1,71 +1,95 @@
-# 🎤 SpeakCoach
+# SpeakCoach
 
-A practice room for public speaking that runs entirely in your browser. Record a talk,
-watch the live transcript, and get an instant breakdown of your pace, filler words,
-and vocabulary — plus optional AI coaching from Claude.
+A rehearsal room for public speaking that runs in your browser. Speak live or upload a
+recording, and get a delivery report on pace, pauses, intonation, volume and energy, filler
+words, word variety and clarity, plus a coaching note from Claude.
 
-> **Note:** SpeakCoach lives in this repository (`deepnz/thearchive`) on branch
-> `claude/speakcoach-repo-setup-ajhrdh` because the automation token couldn't create a
-> new repository. See [Moving to its own repo](#moving-to-its-own-repo) below for the
-> one-minute split.
+**Shareable version:** published as a Claude artifact at
+<https://claude.ai/artifact/9esqfXRvoDnsESzDyqnJdc> (private until shared from its Share menu).
 
-## Features
+> SpeakCoach lives in this repository (`deepnz/thearchive`) on branch
+> `claude/speakcoach-repo-setup-ajhrdh`. See [Moving to its own repo](#moving-to-its-own-repo).
 
-- **Two practice modes** — free talk, or an impromptu "table topic" with a shuffle button
-- **Live transcription** — Web Speech API (Chrome / Edge / Safari), with a paste-a-transcript
-  fallback for other browsers
-- **Instant analysis** — words per minute (target 130–170), filler words per minute with a
-  per-filler breakdown, vocabulary diversity, longest fluent stretch, and a 0–100 score
-- **Rule-based coaching tips** — plus optional qualitative coaching from Claude
-  (`claude-opus-4-8`) using your own API key, stored only in your browser
-- **Progress history** — a score-over-time chart and summary stats; open any past session
-  to reread its transcript, results, and saved AI coaching. Stored in `localStorage`;
-  nothing leaves your device except the optional Claude call
+## What it measures
 
-## Running it
+| Skill | How | Needs |
+|---|---|---|
+| Pace | Exact words/min from a transcript; otherwise estimated from syllable rate in the audio (loudness peaks in voiced speech, de Jong & Wempe 2009), plus rushed stretches in 15 s windows | audio or transcript |
+| Pauses | Silent gaps ≥ 250 ms between speech; per minute, average, long pauses (≥ 2 s), share of time silent | audio |
+| Intonation | YIN pitch tracking (70–400 Hz): variability and range in semitones, flat 5 s stretches, sentences ending on a rise (upspeak) | audio |
+| Volume & energy | Variation of half-second loudness during speech; sentences that fade at the end | audio |
+| Filler words | Context-aware detection ("like", "so", "kind of" only in filler positions) | transcript |
+| Word variety | Moving-average type-token ratio (length-independent) | transcript |
+| Clarity | Speech-recognizer confidence per phrase; unclear phrases underlined | live mic with speech recognition |
 
-No build step, no dependencies. Because it uses ES modules, serve it over HTTP:
+Each skill gets a 0–100 score and a tip that matches its score band. The overall score is a
+weighted average of the skills that could be measured for that take. Recording-quality notes
+flag clipping, background noise, very quiet audio and very short takes.
+
+All audio analysis happens in the browser (in a Web Worker); audio is never uploaded. A
+5-minute recording analyzes in under a second.
+
+## Two ways to run it
+
+**Standalone** (this folder, served over HTTP): live microphone with meters (volume, pace,
+filler count, pitch trace) and live transcription in Chrome, Edge or Safari; uploads; history in
+`localStorage`; coaching with your own Anthropic API key.
 
 ```bash
 cd speakcoach
 npx serve .        # or: python3 -m http.server 8080
 ```
 
-Then open the printed URL in Chrome, Edge, or Safari and allow microphone access.
+**Claude artifact** (the shareable link): uploads and the phone's recorder app; coaching through
+the viewer's own Claude account (no API key); each signed-in viewer's history saved privately to
+their account. Artifacts can't use the microphone, so the mic button explains how to record a
+voice memo and upload it instead.
+
+To republish after changes:
+
+```bash
+node scripts/build-artifact.mjs dist/artifact.html   # page content + inlined CSS
+```
+
+Then publish `dist/artifact.html` with every file in `js/` alongside it (as `js/<name>.js`) and
+capabilities `{ sample: {}, db: {}, user: {} }`.
 
 ## Tests
 
-The analysis engine is a pure module with unit tests on Node's built-in runner:
-
 ```bash
 cd speakcoach
-npm test           # runs node --test on test/*.test.mjs
+npm test           # node --test on test/*.test.mjs
 ```
 
-## AI coaching setup
+The acoustic tests synthesize speech-like audio with known pitch, syllable rate, pauses,
+rising endings and fading volume, and check each measurement against that ground truth.
 
-1. Get an API key at <https://platform.claude.com>.
-2. Finish a session, paste the key into the "AI coaching" panel, and click
-   **Get AI coaching**.
-3. The key is stored in `localStorage` and sent only to `api.anthropic.com`
-   (using Anthropic's direct-browser-access header). Clear it by clearing site data.
+`node scripts/make-example.mjs` regenerates `js/example.js`, the sample report shown from the
+practice page.
 
 ## Project layout
 
 ```
 speakcoach/
-├── index.html          # single page, four views (setup/recording/results/history)
-├── css/styles.css      # "on stage" theme
+├── index.html            # page; content between artifact:start/end is what gets published
+├── css/styles.css        # light + dark tokens
 ├── js/
-│   ├── analysis.js     # pure analysis engine (tested)
-│   ├── transcription.js# Web Speech API wrapper with auto-restart
-│   ├── coach.js        # Claude API call (BYO key)
-│   ├── storage.js      # localStorage sessions + key
-│   ├── chart.js        # score-over-time SVG chart
-│   ├── prompts.js      # impromptu topics
-│   └── app.js          # UI controller
-├── test/              # analysis, storage, chart unit tests
-└── docs/               # PROMPT.md (origin prompt), DESIGN_SPEC.md, future-features.md
+│   ├── acoustics.js      # pitch, pauses, syllables, loudness (pure, tested)
+│   ├── analysis.js       # transcript metrics: fillers, word variety (pure, tested)
+│   ├── report.js         # delivery report card and tips (pure, tested)
+│   ├── audio-input.js    # file decoding, live recorder with meters, worker runner
+│   ├── worker.js         # runs acoustics off the main thread
+│   ├── transcription.js  # Web Speech API wrapper with per-phrase confidence
+│   ├── timeline.js       # pitch + loudness timeline chart with pauses
+│   ├── chart.js          # score-over-time chart
+│   ├── coach.js          # Claude coaching: artifact `sample` or API key
+│   ├── storage.js        # account (artifact db) or browser storage
+│   ├── example.js        # generated sample report
+│   ├── prompts.js        # impromptu topics
+│   └── app.js            # UI controller
+├── scripts/              # build-artifact.mjs, make-example.mjs
+├── test/                 # unit tests
+└── docs/                 # PROMPT.md, DESIGN_SPEC.md, future-features.md
 ```
 
 ## Moving to its own repo

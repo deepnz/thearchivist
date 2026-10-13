@@ -23,6 +23,7 @@ export class Transcriber {
 
     this.finalText = '';
     this.interim = '';
+    this.segments = []; // { text, confidence } per finalized phrase
     this.active = false;
     this.onUpdate = onUpdate;
     this.onError = onError;
@@ -35,7 +36,9 @@ export class Transcriber {
         const result = event.results[i];
         if (result.isFinal) {
           // One recognition result per line: gives the analyzer clause boundaries.
-          newFinal += result[0].transcript.trim() + '\n';
+          const text = result[0].transcript.trim();
+          newFinal += text + '\n';
+          if (text) this.segments.push({ text, confidence: result[0].confidence });
         } else {
           interim += result[0].transcript;
         }
@@ -75,9 +78,28 @@ export class Transcriber {
     return (this.finalText + this.interim).trim();
   }
 
+  // How confidently the recognizer understood each phrase: a proxy for how
+  // clearly words were pronounced. null when the browser reports no scores.
+  clarity() {
+    const scored = this.segments.filter((s) => s.confidence > 0);
+    if (scored.length === 0) return null;
+    let words = 0;
+    let weighted = 0;
+    for (const s of scored) {
+      const n = s.text.split(/\s+/).length;
+      words += n;
+      weighted += s.confidence * n;
+    }
+    return {
+      meanConfidence: +(weighted / words).toFixed(3),
+      unclear: scored.filter((s) => s.confidence < 0.6).map((s) => s.text),
+    };
+  }
+
   start() {
     this.finalText = '';
     this.interim = '';
+    this.segments = [];
     this.active = true;
     this.recognition.start();
   }

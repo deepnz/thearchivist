@@ -10,11 +10,32 @@ const HEIGHT = 220;
 const MARGIN = { top: 18, right: 40, bottom: 30, left: 34 };
 const Y_TICKS = [0, 25, 50, 75, 100];
 
+// A session's overall score. Sessions saved before the delivery report kept
+// their (transcript-only) score under metrics.
+export function sessionScore(s) {
+  const score = s?.score ?? s?.metrics?.score;
+  return Number.isFinite(score) ? score : null;
+}
+
+// How a session was made, in the words the History view uses.
+export function sessionSource(s) {
+  if (s.source === 'upload') return 'Recording';
+  if (s.source === 'text') return 'Transcript';
+  return s.mode === 'impromptu' ? 'Impromptu' : 'Live';
+}
+
+// Pace for display: exact words/min with a transcript, else the estimate.
+export function sessionPace(s) {
+  const item = s.report?.items?.find((i) => i.key === 'pace');
+  if (item) return item.unit.includes('est') ? `~${item.value}` : item.value;
+  return Number.isFinite(s.metrics?.wpm) ? String(s.metrics.wpm) : '—';
+}
+
 // Pure: sessions (any order) -> chronological points with a valid score.
 export function scoreSeries(sessions) {
   return sessions
-    .filter((s) => s && s.at && Number.isFinite(s.metrics?.score))
-    .map((s) => ({ id: s.id, at: s.at, mode: s.mode, metrics: s.metrics, score: s.metrics.score }))
+    .filter((s) => s && s.at && sessionScore(s) !== null)
+    .map((s) => ({ id: s.id, at: s.at, score: sessionScore(s), source: sessionSource(s), pace: sessionPace(s) }))
     .sort((a, b) => new Date(a.at) - new Date(b.at));
 }
 
@@ -122,8 +143,8 @@ export function renderScoreChart(container, sessions, { onSelect } = {}) {
     const value = document.createElement('strong');
     value.textContent = p.score;
     const lines = [
-      `${new Date(p.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${p.mode === 'impromptu' ? 'Impromptu' : 'Free talk'}`,
-      `${p.metrics.wpm} WPM · ${p.metrics.fillersPerMinute} fillers/min`,
+      `${new Date(p.at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · ${p.source}`,
+      `Pace ${p.pace} words/min`,
     ];
     tooltip.replaceChildren(value, document.createTextNode(' score'),
       ...lines.map((text) => { const d = document.createElement('div'); d.textContent = text; return d; }));

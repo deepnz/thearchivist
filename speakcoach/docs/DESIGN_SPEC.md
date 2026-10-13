@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-20
 **Platform:** Web (static, no build step)
-**Status:** v1 shipped
+**Status:** v3: voice analysis, uploads, Claude artifact
 
 ---
 
@@ -88,3 +88,33 @@ recognition fails (blocked mic, no speech service), and is always reachable via
 "On stage" theme: near-black indigo background (#0e1116), warm spotlight amber
 accent (#f5b942), off-white text, large numerals for the timer and stat tiles.
 System font stack; no webfonts (keeps it dependency-free).
+
+## v3: voice analysis and the shareable artifact
+
+**Inputs.** Live microphone (standalone only: artifacts can't use the mic), uploaded audio or
+video files, the phone recorder app via a capture file input, or a pasted transcript.
+
+**Acoustic engine** (`js/acoustics.js`, worker). 16 kHz mono; 30 ms loudness frames every
+10 ms; adaptive speech threshold between noise floor and speech level; pauses ≥ 250 ms; YIN
+pitch on 8 kHz audio with octave-jump cleanup; syllable nuclei = voiced loudness peaks with a
+2 dB dip. Outputs pace (syllable rate, estimated WPM at 1.45 syllables/word, 15 s windows),
+pauses, pitch variability/range/flat stretches/rising ends, loudness emphasis and fading ends,
+recording quality, and a compact timeline (0.25 s steps) that is stored with each take.
+
+**Report** (`js/report.js`). Skills scored 0–100 with piecewise-linear curves; status bands
+strong ≥ 80, fair ≥ 55, focus below. Tips are chosen from the score band so advice and score
+always agree. Weights: pace 20, pauses 15, intonation 20, volume 10, fillers 20, word variety 5,
+clarity 10, re-normalized over the skills measured.
+
+**Results view.** Score dial, "Work on next" (lowest three under 85), strengths, delivery
+timeline (pitch and loudness as stacked panels sharing a time axis, pauses shaded, longest
+pauses labeled, crosshair tooltip, click to play from that moment), report cards, pause table,
+transcript with fillers marked and unclear phrases underlined, coaching note.
+
+**Artifact.** Capabilities `sample` (coaching on the viewer's Claude account), `db` + `user`
+(sessions in `data/users/<id>/profile/sessions/<take>`, private per viewer). Falls back to
+browser storage when signed out or when a write is refused. No `alert`/`confirm` (artifacts
+don't show them); all messages are inline.
+
+**Chart colors** (validated with the dataviz palette checks): pitch #2a78d6 / #3987e5,
+loudness #16966a / #199e70, score #b57600 / #c98500 (light / dark).

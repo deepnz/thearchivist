@@ -2,137 +2,312 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SpeakCoach — your public speaking practice room</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎤</text></svg>">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='5.5' fill='%23e9a12a'/><circle cx='16' cy='16' r='11' fill='none' stroke='%23e9a12a' stroke-width='2.5'/></svg>">
+<!-- artifact:start -->
+<title>SpeakCoach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+<!-- artifact:head-end -->
 </head>
 <body>
+<div class="app">
   <header class="site-header">
-    <h1>Speak<span class="accent">Coach</span></h1>
-    <p class="tagline">Your practice room for public speaking</p>
-    <nav>
-      <button id="nav-practice" class="nav-btn active">Practice</button>
-      <button id="nav-history" class="nav-btn">History</button>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">SpeakCoach</span>
+    </div>
+    <nav class="tabs" aria-label="Sections">
+      <button id="nav-practice" class="tab active" type="button">Practice</button>
+      <button id="nav-history" class="tab" type="button">History</button>
     </nav>
   </header>
 
   <main>
-    <!-- Setup -->
+    <!-- ============ Practice ============ -->
     <section id="view-setup" class="view">
-      <div class="card">
-        <h2>Set up your session</h2>
-        <div class="field-row">
-          <label class="field-label">Mode</label>
-          <div class="segmented" id="mode-picker">
-            <button data-mode="free" class="active">Free talk</button>
-            <button data-mode="impromptu">Impromptu topic</button>
-          </div>
-        </div>
-        <div class="field-row">
-          <label class="field-label">Target length</label>
-          <div class="segmented" id="duration-picker">
-            <button data-seconds="60">1 min</button>
-            <button data-seconds="120" class="active">2 min</button>
-            <button data-seconds="300">5 min</button>
-          </div>
-        </div>
-        <div id="topic-card" class="topic-card hidden">
-          <p id="topic-text"></p>
-          <button id="shuffle-topic" class="ghost-btn">↻ Shuffle topic</button>
-        </div>
-        <button id="start-btn" class="primary-btn">● Start recording</button>
-        <button id="show-manual-btn" class="link-btn">or paste a transcript instead</button>
-        <div id="unsupported" class="hidden">
-          <p id="manual-notice" class="notice"></p>
-          <textarea id="manual-transcript" rows="6" placeholder="Paste or type what you said…"></textarea>
-          <div class="field-row">
-            <label class="field-label" for="manual-duration">How long did you speak? (seconds)</label>
-            <input type="number" id="manual-duration" min="5" value="120">
-          </div>
-          <button id="analyze-manual-btn" class="primary-btn">Analyze transcript</button>
-        </div>
-        <p class="fine-print">Everything runs in your browser. Nothing is uploaded unless you ask for AI coaching.</p>
+      <div class="intro">
+        <h1>Rehearse out loud. See how it lands.</h1>
+        <p class="lede">Speak live or upload a recording. You get feedback on your pace, pauses, intonation, volume, filler words and clarity, and a coaching note from Claude.</p>
       </div>
-    </section>
 
-    <!-- Recording -->
-    <section id="view-recording" class="view hidden">
-      <div class="card recording-card">
-        <div class="rec-indicator"><span class="pulse"></span> Recording</div>
-        <div id="timer" class="timer">0:00</div>
-        <p id="recording-topic" class="recording-topic hidden"></p>
-        <div id="live-transcript" class="live-transcript" aria-live="polite">
-          <span class="placeholder">Start speaking — your words will appear here…</span>
-        </div>
-        <button id="stop-btn" class="primary-btn stop">■ Stop &amp; analyze</button>
-      </div>
-    </section>
+      <div class="input-grid">
+        <!-- Speak live -->
+        <article class="card input-card" aria-labelledby="live-title">
+          <header class="card-head">
+            <h2 id="live-title">Speak now</h2>
+            <p class="card-sub">Live meters while you talk, full report when you stop.</p>
+          </header>
 
-    <!-- Results -->
-    <section id="view-results" class="view hidden">
-      <div class="card">
-        <h2 id="results-heading">Session results</h2>
-        <p id="results-meta" class="review-meta hidden"></p>
-        <p id="result-warning" class="notice hidden" role="alert"></p>
-        <div class="stat-grid" id="stat-grid"></div>
-        <div id="filler-chips" class="filler-chips"></div>
-        <p class="fine-print">Filler detection is heuristic: "like", "so", "well", "right" and "kind of" only count in
-          typical filler positions, but it can still miss or over-count now and then.</p>
-        <h3>Coaching notes</h3>
-        <ul id="tips-list" class="tips-list"></ul>
-        <details class="transcript-details">
-          <summary>Transcript</summary>
-          <p id="result-transcript"></p>
-        </details>
-
-        <div id="ai-panel" class="ai-panel">
-          <h3>AI coaching <span class="badge">Claude</span></h3>
-          <div id="ai-setup">
-            <p class="fine-print">Uses your own Anthropic API key, stored only in this browser and sent only to api.anthropic.com.</p>
-            <div class="key-row">
-              <input type="password" id="api-key-input" placeholder="sk-ant-…" autocomplete="off">
-              <button id="get-coaching-btn" class="primary-btn small">Get AI coaching</button>
+          <div class="field">
+            <span class="field-label" id="mode-label">What to talk about</span>
+            <div class="segmented" id="mode-picker" role="group" aria-labelledby="mode-label">
+              <button type="button" data-mode="free" class="active">My own talk</button>
+              <button type="button" data-mode="impromptu">Give me a topic</button>
             </div>
           </div>
-          <div id="ai-output" class="ai-output hidden"></div>
-        </div>
+          <div id="topic-card" class="cue-card" hidden>
+            <span class="cue-label">Your topic</span>
+            <p id="topic-text"></p>
+            <button id="shuffle-topic" class="text-btn" type="button">Another topic</button>
+          </div>
+          <div class="field">
+            <span class="field-label" id="duration-label">Aim for</span>
+            <div class="segmented" id="duration-picker" role="group" aria-labelledby="duration-label">
+              <button type="button" data-seconds="60">1 min</button>
+              <button type="button" data-seconds="120" class="active">2 min</button>
+              <button type="button" data-seconds="300">5 min</button>
+            </div>
+          </div>
 
-        <div class="button-row">
-          <button id="back-history-btn" class="primary-btn secondary-btn hidden">← Back to history</button>
-          <button id="again-btn" class="primary-btn">Practice again</button>
-        </div>
+          <button id="start-btn" class="mic-btn" type="button">
+            <span class="mic-icon" aria-hidden="true"></span>
+            <span>Start speaking</span>
+          </button>
+          <p id="mic-note" class="note" role="status" hidden></p>
+        </article>
+
+        <!-- Upload -->
+        <article class="card input-card" aria-labelledby="upload-title">
+          <header class="card-head">
+            <h2 id="upload-title">Analyze a recording</h2>
+            <p class="card-sub">A voice memo, a rehearsal, a talk you gave. Audio or video.</p>
+          </header>
+
+          <label id="drop-zone" class="drop-zone" for="file-input">
+            <span class="drop-icon" aria-hidden="true"></span>
+            <span class="drop-main">Drop a file here or <span class="link-look">choose one</span></span>
+            <span class="drop-sub">MP3, M4A, WAV, WebM, OGG or MP4 · up to 20 minutes analyzed</span>
+          </label>
+          <input id="file-input" type="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.webm,.ogg,.oga,.opus,.aac,.flac,.mp4,.mov" class="visually-hidden">
+          <label id="capture-btn" class="secondary-btn capture" for="capture-input" hidden>Record with your phone's recorder</label>
+          <input id="capture-input" type="file" accept="audio/*" capture class="visually-hidden">
+
+          <div id="file-panel" class="file-panel" hidden>
+            <div class="file-row">
+              <span class="file-icon" aria-hidden="true"></span>
+              <div class="file-meta">
+                <strong id="file-name"></strong>
+                <span id="file-info" class="muted"></span>
+              </div>
+              <button id="file-clear" class="text-btn" type="button">Remove</button>
+            </div>
+            <details class="transcript-add">
+              <summary>Add a transcript (optional)</summary>
+              <p class="muted small">With the words, you also get filler-word counts, word variety and an exact pace.</p>
+              <label class="visually-hidden" for="upload-transcript">Transcript of the recording</label>
+              <textarea id="upload-transcript" rows="5" placeholder="Paste what you said…"></textarea>
+            </details>
+            <button id="analyze-file-btn" class="primary-btn" type="button">Analyze recording</button>
+          </div>
+          <p id="upload-error" class="note error" role="alert" hidden></p>
+        </article>
+      </div>
+
+      <div class="secondary-row">
+        <details id="manual-entry" class="card manual-card">
+          <summary>Only have a transcript? Analyze the words</summary>
+          <p id="manual-notice" class="muted small">Paste what you said and how long you spoke. You'll get pace, filler words and word variety, but no voice analysis.</p>
+          <label class="visually-hidden" for="manual-transcript">Transcript</label>
+          <textarea id="manual-transcript" rows="5" placeholder="Paste or type what you said…"></textarea>
+          <div class="inline-fields">
+            <label for="manual-duration">Seconds spoken</label>
+            <input type="number" id="manual-duration" min="5" max="3600" value="120" inputmode="numeric">
+            <button id="analyze-manual-btn" class="secondary-btn" type="button">Analyze words</button>
+          </div>
+          <p id="manual-error" class="note error" role="alert" hidden></p>
+        </details>
+
+        <aside class="card example-card" aria-labelledby="example-title">
+          <span class="tag">Example</span>
+          <h2 id="example-title">See a sample report</h2>
+          <p class="muted small">A two-minute take, scored and annotated, so you know what you'll get.</p>
+          <button id="example-btn" class="secondary-btn" type="button">Open example report</button>
+        </aside>
       </div>
     </section>
 
-    <!-- History -->
-    <section id="view-history" class="view hidden">
-      <div class="card">
-        <h2>Your progress</h2>
-        <div id="history-empty" class="hidden"><p>No sessions yet — go practice!</p></div>
-        <div id="history-content" class="hidden">
-          <div id="history-summary" class="stat-grid history-summary"></div>
-          <h3 class="chart-heading">Score over time</h3>
-          <div id="score-chart" class="chart-wrap"></div>
-          <p class="fine-print">Select a point, or a date in the table, to review that session.</p>
+    <!-- ============ Live recording ============ -->
+    <section id="view-recording" class="view" hidden>
+      <div class="card recording-card">
+        <div class="rec-top">
+          <span class="on-air"><span class="pulse" aria-hidden="true"></span>Recording</span>
+          <span id="timer" class="timer">0:00</span>
+          <span id="timer-target" class="muted small"></span>
         </div>
+        <p id="recording-topic" class="recording-topic" hidden></p>
+
+        <div class="meters">
+          <div class="meter">
+            <span class="meter-label">Volume</span>
+            <div class="level" aria-hidden="true">
+              <div class="level-zone"></div>
+              <div id="level-fill" class="level-fill"></div>
+            </div>
+            <span id="level-note" class="meter-value">—</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label">Pace</span>
+            <span id="pace-live" class="meter-chip">Listening…</span>
+            <span id="pace-value" class="meter-value">—</span>
+          </div>
+          <div class="meter">
+            <span class="meter-label">Fillers</span>
+            <span id="filler-live" class="meter-value big">0</span>
+            <span id="filler-note" class="meter-value">so far</span>
+          </div>
+        </div>
+
+        <div class="pitch-live">
+          <span class="meter-label">Pitch, last 8 seconds</span>
+          <canvas id="pitch-canvas" height="90" aria-label="Live pitch trace" role="img"></canvas>
+        </div>
+
+        <div id="live-transcript" class="live-transcript" aria-live="polite">
+          <span class="placeholder">Start speaking. Your words appear here.</span>
+        </div>
+
+        <button id="stop-btn" class="primary-btn stop" type="button">Stop and get my report</button>
+      </div>
+    </section>
+
+    <!-- ============ Processing ============ -->
+    <section id="view-processing" class="view" hidden>
+      <div class="card processing-card" role="status" aria-live="polite">
+        <div class="wave" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+        <h2 id="processing-title">Analyzing your take</h2>
+        <p id="processing-step" class="muted">Reading the audio…</p>
+      </div>
+    </section>
+
+    <!-- ============ Results ============ -->
+    <section id="view-results" class="view" hidden>
+      <header class="results-head">
+        <p id="results-eyebrow" class="eyebrow"></p>
+        <h1 id="results-heading">Delivery report</h1>
+      </header>
+      <div id="result-warnings" class="warnings" role="alert" hidden></div>
+
+      <div class="summary card">
+        <div class="score-block">
+          <div id="score-dial" class="score-dial" aria-hidden="true"><span id="score-value">0</span><small>/100</small></div>
+          <p id="score-verdict" class="verdict"></p>
+          <p id="score-measured" class="muted small"></p>
+        </div>
+        <div class="focus-block">
+          <h2 class="block-title">Work on next</h2>
+          <ol id="focus-list" class="focus-list"></ol>
+          <div id="strengths" class="strengths" hidden>
+            <h3 class="block-title small-title">Already strong</h3>
+            <ul id="strength-list" class="strength-list"></ul>
+          </div>
+        </div>
+      </div>
+
+      <div id="timeline-card" class="card timeline-card" hidden>
+        <div class="timeline-head">
+          <h2 class="block-title">Your delivery, moment by moment</h2>
+          <div class="legend" aria-label="Chart key">
+            <span><i class="key key-pitch"></i>Pitch</span>
+            <span><i class="key key-loud"></i>Loudness</span>
+            <span><i class="key key-pause"></i>Pause</span>
+          </div>
+        </div>
+        <audio id="player" controls preload="metadata" hidden></audio>
+        <div id="timeline" class="chart-wrap"></div>
+        <p id="timeline-hint" class="muted small"></p>
+      </div>
+
+      <div id="report-grid" class="report-grid"></div>
+
+      <details id="pause-details" class="card detail-card" hidden>
+        <summary>Pauses <span id="pause-summary" class="muted"></span></summary>
         <div class="table-scroll">
-        <table id="history-table" class="history-table hidden">
-          <thead>
-            <tr><th>When</th><th>Mode</th><th>Length</th><th>WPM</th><th>Fillers/min</th><th>Score</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+          <table class="data-table">
+            <thead><tr><th>Starts at</th><th>Length</th><th>Kind</th></tr></thead>
+            <tbody id="pause-rows"></tbody>
+          </table>
         </div>
-        <button id="clear-history-btn" class="ghost-btn danger hidden">Clear history</button>
+      </details>
+
+      <section id="words-card" class="card words-card" hidden>
+        <h2 class="block-title">Your words</h2>
+        <div id="filler-chips" class="chips"></div>
+        <p class="muted small">Filler detection is heuristic: "like", "so", "well", "right" and "kind of" only count in typical filler positions. <span id="unclear-key" hidden>Underlined phrases were hard for the speech recognizer to make out.</span></p>
+        <div id="result-transcript" class="transcript"></div>
+      </section>
+
+      <section id="ai-panel" class="card ai-panel">
+        <div class="ai-head">
+          <h2 class="block-title">Coaching note</h2>
+          <span class="badge">Claude</span>
+        </div>
+        <p id="ai-intro" class="muted small"></p>
+        <div id="ai-key-row" class="key-row" hidden>
+          <label class="visually-hidden" for="api-key-input">Anthropic API key</label>
+          <input type="password" id="api-key-input" placeholder="Anthropic API key (sk-ant-…)" autocomplete="off">
+        </div>
+        <div class="ai-actions">
+          <button id="get-coaching-btn" class="primary-btn" type="button">Get coaching</button>
+          <button id="stop-coaching-btn" class="secondary-btn" type="button" hidden>Stop</button>
+        </div>
+        <div id="ai-output" class="ai-output" hidden></div>
+      </section>
+
+      <div class="button-row">
+        <button id="back-history-btn" class="secondary-btn" type="button" hidden>Back to history</button>
+        <button id="again-btn" class="primary-btn" type="button">Practice again</button>
+      </div>
+    </section>
+
+    <!-- ============ History ============ -->
+    <section id="view-history" class="view" hidden>
+      <header class="results-head">
+        <h1>Your progress</h1>
+        <p id="storage-note" class="muted small"></p>
+      </header>
+      <div id="history-empty" class="card empty-state" hidden>
+        <h2>No takes yet</h2>
+        <p class="muted">Each time you speak or upload a recording, its score lands here so you can watch it climb.</p>
+        <button id="empty-practice-btn" class="primary-btn" type="button">Record your first take</button>
+      </div>
+      <div id="history-content" hidden>
+        <div id="history-summary" class="stat-row"></div>
+        <div class="card">
+          <h2 class="block-title">Score over time</h2>
+          <div id="score-chart" class="chart-wrap"></div>
+          <p class="muted small">Select a point, or a date in the table, to reopen that take.</p>
+        </div>
+        <div class="card">
+          <div class="table-scroll">
+            <table id="history-table" class="data-table history-table">
+              <thead>
+                <tr><th>When</th><th>Type</th><th>Length</th><th>Pace</th><th>Score</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="clear-row">
+            <button id="clear-history-btn" class="text-btn danger" type="button">Clear history</button>
+            <span id="clear-confirm" class="clear-confirm" hidden>
+              <span>Delete every saved take?</span>
+              <button id="clear-yes" class="secondary-btn danger" type="button">Delete all</button>
+              <button id="clear-no" class="text-btn" type="button">Cancel</button>
+            </span>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>SpeakCoach · fully client-side · <a href="https://github.com/deepnz" target="_blank" rel="noopener">deepnz</a></p>
+    <p>Your audio is analyzed in your browser and never uploaded. Only the coaching note sends your transcript and numbers to Claude, and only when you ask.</p>
   </footer>
+</div>
 
-  <script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js"></script>
+<!-- artifact:end -->
 </body>
 </html>

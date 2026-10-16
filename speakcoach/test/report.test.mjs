@@ -102,3 +102,33 @@ test('quality notes flag clipping, noise and short takes', () => {
   const notes = qualityNotes(acoustic({ talkSec: 8, quality: { clippedShare: 0.01, signalToNoiseDb: 10, speechLevelDb: -20 } }));
   assert.equal(notes.length, 3);
 });
+
+test('a delivery style sets the pace target', async () => {
+  const { DELIVERY } = await import('../js/prompts.js');
+  const slowTalk = acoustic({ pace: { syllables: 300, syllablesPerSec: 3, articulationRate: 4, estWpm: 125, windows: [] } });
+  const calm = buildReport({ acoustic: slowTalk, delivery: DELIVERY.calm }).items.find((i) => i.key === 'pace');
+  const energetic = buildReport({ acoustic: slowTalk, delivery: DELIVERY.energetic }).items.find((i) => i.key === 'pace');
+  assert.equal(calm.score, 100);
+  assert.match(calm.tip, /Calm & deliberate target of 110–140/);
+  assert.ok(energetic.score < 60, `energetic pace score ${energetic.score}`);
+  assert.match(energetic.tip, /slower than your Energetic target/);
+});
+
+test('the delivery goal averages the style\'s measured focus skills', async () => {
+  const { DELIVERY } = await import('../js/prompts.js');
+  // Calm & deliberate focuses on pace and pauses; both strong here.
+  const hit = buildReport({ acoustic: acoustic({ pace: { syllables: 300, syllablesPerSec: 3, articulationRate: 4, estWpm: 125, windows: [] } }), delivery: DELIVERY.calm });
+  assert.equal(hit.deliveryGoal.verdict, 'hit');
+  assert.deepEqual(hit.deliveryGoal.items.map((i) => i.key), ['pace', 'pauses']);
+  // Crisp & concise focuses on fillers (needs words) and pace: only pace is measurable from audio.
+  const audioOnly = buildReport({ acoustic: acoustic(), delivery: DELIVERY.crisp });
+  assert.deepEqual(audioOnly.deliveryGoal.items.map((i) => i.key), ['pace']);
+  // No delivery chosen: no goal.
+  assert.equal(buildReport({ acoustic: acoustic() }).deliveryGoal, null);
+});
+
+test('a goal whose skills need words reads as unmeasured without a transcript', async () => {
+  const { DELIVERY } = await import('../js/prompts.js');
+  const r = buildReport({ acoustic: { speechFound: false, durationSec: 5, quality: {} }, delivery: DELIVERY.conversational });
+  assert.equal(r.deliveryGoal.verdict, 'unmeasured');
+});

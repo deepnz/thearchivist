@@ -182,6 +182,49 @@ main { display: block; }
 }
 .segmented button.active { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 
+/* ---------- Prompt picker ---------- */
+.prompt-card { display: flex; flex-direction: column; gap: 18px; }
+.prompt-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.prompt-head .card-head { min-width: 0; flex: 1 1 260px; }
+.prompt-panel { display: flex; flex-direction: column; gap: 16px; }
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; }
+.filter { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+select {
+  width: 100%; appearance: none; -webkit-appearance: none; cursor: pointer;
+  background-color: var(--surface-2); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 9px 34px 9px 12px; font: inherit; font-size: var(--step--1); font-weight: 700;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 55%, calc(100% - 12px) 55%;
+  background-size: 5px 5px; background-repeat: no-repeat;
+}
+select:hover { border-color: var(--ink-3); }
+.cue-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.cue-tag {
+  font-family: var(--font-data); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 9px;
+}
+.cue-tag.difficulty { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.cue-text { font-family: var(--font-display); font-size: var(--step-2); font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; text-wrap: balance; }
+.cue-plan { margin: 0; display: grid; gap: 6px; }
+.plan-row { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 10px; font-size: var(--step--1); }
+.plan-row dt { font-family: var(--font-data); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-ink); padding-top: 2px; }
+.plan-row dd { margin: 0; color: var(--ink-2); }
+.plan-row dd strong { color: var(--ink); }
+.plan-pace { font-family: var(--font-data); color: var(--ink-3); white-space: nowrap; }
+.twist-row dd { color: var(--ink); font-weight: 700; }
+@media (max-width: 480px) { .plan-row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+.cue-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cue-actions .secondary-btn { background: var(--surface); padding: 8px 16px; font-size: var(--step--1); }
+.prep-timer { font-family: var(--font-data); font-size: var(--step-1); font-variant-numeric: tabular-nums; color: var(--ink); }
+.prep-timer.done { color: var(--accent-ink); font-family: var(--font-body); font-weight: 700; font-size: var(--step-0); }
+.recording-delivery { font-size: var(--step--1); color: var(--ink-2); }
+.recording-delivery strong { color: var(--ink); }
+.results-prompt { font-family: var(--font-display); font-size: var(--step-1); color: var(--ink-2); max-width: 46rem; }
+.goal-block { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 12px; }
+.goal-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.goal-skills { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: var(--step--1); color: var(--ink-2); }
+.goal-skills span { font-family: var(--font-data); }
+
 /* The topic reads like a cue card held up from the wings. */
 .cue-card {
   border: 1px dashed var(--accent);
@@ -192,6 +235,7 @@ main { display: block; }
 }
 .cue-label { font-family: var(--font-data); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-ink); }
 .cue-card p { font-family: var(--font-display); font-size: var(--step-1); font-weight: 500; }
+.cue-card p.small { font-family: var(--font-body); font-size: var(--step--1); font-weight: 400; }
 
 .mic-btn {
   display: flex; align-items: center; justify-content: center; gap: 12px;
@@ -399,6 +443,7 @@ textarea { resize: vertical; min-height: 6rem; }
 .status.strong { color: var(--good); }
 .status.fair { color: var(--fair); }
 .status.focus { color: var(--focus); }
+.status.unmeasured { color: var(--ink-3); }
 .reading { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .reading .value { font-family: var(--font-display); font-size: var(--step-3); font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
 .reading .unit { font-family: var(--font-data); font-size: var(--step--1); color: var(--ink-3); }

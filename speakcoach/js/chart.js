@@ -5,6 +5,8 @@
 // tooltip that snaps to the nearest session. The History table below is the
 // chart's table view, so no value is reachable only by hovering.
 
+import { CATEGORY } from './prompts.js';
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const HEIGHT = 220;
 const MARGIN = { top: 18, right: 40, bottom: 30, left: 34 };
@@ -19,6 +21,7 @@ export function sessionScore(s) {
 
 // How a session was made, in the words the History view uses.
 export function sessionSource(s) {
+  if (s.prompt) return CATEGORY[s.prompt.category]?.label ?? 'Prompt';
   if (s.source === 'upload') return 'Recording';
   if (s.source === 'text') return 'Transcript';
   return s.mode === 'impromptu' ? 'Impromptu' : 'Live';

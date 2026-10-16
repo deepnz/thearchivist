@@ -20,6 +20,11 @@ test('scoreSeries reads new and old score locations', () => {
   assert.equal(fresh.pace, '~140');
 });
 
+test('takes made from a prompt are labeled by category', () => {
+  const [p] = scoreSeries([{ id: 'p', at: '2026-10-02T10:00:00Z', score: 70, source: 'live', prompt: { category: 'persuade' } }]);
+  assert.equal(p.source, 'Persuasion');
+});
+
 test('scoreSeries skips sessions without a usable score or date', () => {
   const points = scoreSeries([s('a', 1, 50), { id: 'x', at: null, metrics: { score: 10 } }, { id: 'y', at: '2026-09-02', metrics: {} }, null]);
   assert.deepEqual(points.map((p) => p.id), ['a']);

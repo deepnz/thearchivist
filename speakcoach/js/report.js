@@ -35,20 +35,22 @@ export function status(score) {
   return 'focus';
 }
 
-function paceItem(text, acoustic) {
+// delivery (optional): a style from prompts.js; its pace band replaces the default.
+function paceItem(text, acoustic, delivery) {
   const exact = text && text.wordCount > 0;
   const wpm = exact ? text.wpm : acoustic?.pace?.estWpm;
   if (!Number.isFinite(wpm) || wpm <= 0) return null;
-  const { min, max } = TARGET_WPM;
+  const { min, max } = delivery?.pace ?? TARGET_WPM;
+  const band = delivery ? `your ${delivery.label} target of ${min}–${max}` : `the ${min}–${max} range listeners follow comfortably`;
   const distance = wpm < min ? min - wpm : wpm > max ? wpm - max : 0;
   const score = clamp(100 * (1 - distance / 60));
 
   const windows = acoustic?.pace?.windows ?? [];
   const rushed = windows.filter((w) => w.estWpm > max + 25);
   let tip;
-  if (wpm > max) tip = `You averaged about ${wpm} words a minute, faster than the ${min}–${max} range listeners follow comfortably. Pause at each full stop and let key points land.`;
-  else if (wpm < min) tip = `You averaged about ${wpm} words a minute, a little slow. Shorten the gaps inside sentences and keep the pauses for the ends of ideas.`;
-  else tip = `Comfortable pace: about ${wpm} words a minute, inside the ${min}–${max} range.`;
+  if (wpm > max) tip = `You averaged about ${wpm} words a minute, faster than ${band}. Pause at each full stop and let key points land.`;
+  else if (wpm < min) tip = `You averaged about ${wpm} words a minute, slower than ${band}. Shorten the gaps inside sentences and keep the pauses for the ends of ideas.`;
+  else tip = `On pace: about ${wpm} words a minute, inside ${band}.`;
   if (rushed.length && wpm <= max) {
     const at = rushed.map((w) => formatClock(w.start)).slice(0, 3).join(', ');
     tip += ` You sped up around ${at}; that's often where nerves or a well-known part of the talk takes over.`;
@@ -211,14 +213,35 @@ export function formatClock(sec) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
+// How well a take matched the delivery style it set out to practice: the
+// average of that style's focus skills that could be measured.
+function deliveryGoal(delivery, items) {
+  if (!delivery) return null;
+  const measured = delivery.focus.map((key) => items.find((i) => i.key === key)).filter(Boolean);
+  if (measured.length === 0) {
+    return { key: delivery.key, label: delivery.label, cue: delivery.cue, items: [], score: null, verdict: 'unmeasured' };
+  }
+  const score = Math.round(measured.reduce((sum, i) => sum + i.score, 0) / measured.length);
+  return {
+    key: delivery.key,
+    label: delivery.label,
+    cue: delivery.cue,
+    items: measured.map((i) => ({ key: i.key, label: i.label, score: i.score, status: i.status })),
+    score,
+    verdict: score >= 80 ? 'hit' : score >= 55 ? 'close' : 'missed',
+  };
+}
+
 /**
  * Builds the delivery report.
- * @returns {{ score: number, items: object[], focus: object[], strengths: object[], measured: string[] }}
+ * delivery (optional): the style being practiced (from prompts.js DELIVERIES);
+ * it sets the pace target and adds a deliveryGoal verdict.
+ * @returns {{ score: number, items: object[], focus: object[], strengths: object[], measured: string[], deliveryGoal: object|null }}
  */
-export function buildReport({ text = null, acoustic = null, clarity = null } = {}) {
+export function buildReport({ text = null, acoustic = null, clarity = null, delivery = null } = {}) {
   const usableAcoustic = acoustic?.speechFound ? acoustic : null;
   const items = [
-    paceItem(text, usableAcoustic),
+    paceItem(text, usableAcoustic, delivery),
     pausesItem(usableAcoustic),
     intonationItem(usableAcoustic),
     volumeItem(usableAcoustic),
@@ -240,6 +263,7 @@ export function buildReport({ text = null, acoustic = null, clarity = null } = {
     focus: byScore.filter((i) => i.score < 85).slice(0, 3),
     strengths: byScore.reverse().filter((i) => i.score >= 85).slice(0, 2),
     measured: items.map((i) => i.key),
+    deliveryGoal: deliveryGoal(delivery, items),
   };
 }
 

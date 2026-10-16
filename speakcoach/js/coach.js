@@ -5,6 +5,7 @@
 // Both send the same prompt, built from the measurements and transcript.
 
 import { formatClock } from './report.js';
+import { CATEGORY, DIFFICULTY, DELIVERY } from './prompts.js';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-opus-4-8';
@@ -25,11 +26,24 @@ export async function coachingMode() {
 }
 
 export function buildPrompt(session) {
-  const { report, acoustic, metrics, transcript, mode, topic, source } = session;
+  const { report, acoustic, metrics, transcript, mode, topic, source, prompt } = session;
   const lines = [];
-  lines.push(mode === 'impromptu' && topic
-    ? `This was an impromptu practice talk on the prompt: "${topic}".`
-    : 'This was a practice talk.');
+  if (prompt) {
+    const cat = CATEGORY[prompt.category];
+    const diff = DIFFICULTY[prompt.difficulty];
+    const delivery = DELIVERY[prompt.delivery];
+    lines.push(`This was a ${diff?.label ?? ''} ${cat?.label ?? ''} practice speech on the prompt: "${prompt.text}"`);
+    if (delivery) lines.push(`Delivery goal: ${delivery.label}. ${delivery.cue} (Pace target ${delivery.pace.min}–${delivery.pace.max} words/min.)`);
+    if (prompt.twist) lines.push(`Challenge twist the speaker was asked to work in: ${prompt.twist}`);
+    const goal = report?.deliveryGoal;
+    if (goal?.score !== null && goal?.score !== undefined) {
+      lines.push(`Delivery goal result: ${goal.verdict} (${goal.items.map((i) => `${i.label} ${i.score}/100`).join(', ')}).`);
+    }
+  } else {
+    lines.push(mode === 'impromptu' && topic
+      ? `This was an impromptu practice talk on the prompt: "${topic}".`
+      : 'This was a practice talk.');
+  }
   if (source === 'upload') lines.push('The speaker uploaded a recording of it.');
 
   lines.push('', 'Delivery report (each skill scored 0–100):');
@@ -64,6 +78,10 @@ export function buildPrompt(session) {
     'Write plain text (no markdown symbols) with exactly these three sections, each starting on its own line with the heading in capitals:',
     'WHAT WORKED: 2 specific strengths.',
     'WHAT TO WORK ON: the 2 changes that would most improve this talk, each with how to do it.',
+    ...(prompt ? [
+      'Within these sections, say whether the delivery matched the delivery goal, and whether the talk answered the prompt.',
+      ...(prompt.twist ? [transcript ? 'Say whether the twist was used, based on the transcript.' : 'There is no transcript, so do not judge whether the twist was used.'] : []),
+    ] : []),
     'ONE DRILL: a single concrete exercise for the next practice session, under 60 words.',
     'Keep the whole response under 260 words.',
   );

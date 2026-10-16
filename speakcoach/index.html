@@ -33,6 +33,54 @@
         <p class="lede">Speak live or upload a recording. You get feedback on your pace, pauses, intonation, volume, filler words and clarity, and a coaching note from Claude.</p>
       </div>
 
+      <!-- What to talk about -->
+      <section class="card prompt-card" aria-labelledby="prompt-title">
+        <header class="prompt-head">
+          <div class="card-head">
+            <h2 id="prompt-title">What will you talk about?</h2>
+            <p class="card-sub">Bring your own talk, or practice a prompt with a delivery style to aim for.</p>
+          </div>
+          <div class="segmented" id="mode-picker" role="group" aria-label="Topic source">
+            <button type="button" data-mode="free" class="active">My own talk</button>
+            <button type="button" data-mode="prompt">Give me a prompt</button>
+          </div>
+        </header>
+
+        <div id="prompt-panel" class="prompt-panel" hidden>
+          <div class="filters">
+            <label class="filter"><span class="field-label">Category</span><select id="filter-category"></select></label>
+            <label class="filter"><span class="field-label">Theme</span><select id="filter-theme"></select></label>
+            <label class="filter"><span class="field-label">Difficulty</span><select id="filter-difficulty"></select></label>
+            <label class="filter"><span class="field-label">Delivery</span><select id="filter-delivery"></select></label>
+          </div>
+
+          <!-- The prompt reads like a cue card held up from the wings. -->
+          <article class="cue-card" aria-live="polite">
+            <div class="cue-tags">
+              <span id="tag-category" class="cue-tag"></span>
+              <span id="tag-theme" class="cue-tag"></span>
+              <span id="tag-difficulty" class="cue-tag difficulty"></span>
+            </div>
+            <p id="prompt-text" class="cue-text"></p>
+            <p id="prompt-relaxed" class="muted small" hidden></p>
+            <dl class="cue-plan">
+              <div class="plan-row delivery-row">
+                <dt>Deliver it</dt>
+                <dd><strong id="delivery-label"></strong> <span id="delivery-cue"></span> <span id="delivery-pace" class="plan-pace"></span></dd>
+              </div>
+              <div class="plan-row"><dt>Prep</dt><dd id="plan-prep"></dd></div>
+              <div class="plan-row"><dt>Length</dt><dd id="plan-length"></dd></div>
+              <div id="twist-row" class="plan-row twist-row" hidden><dt>Twist</dt><dd id="plan-twist"></dd></div>
+            </dl>
+            <div class="cue-actions">
+              <button id="new-prompt-btn" class="secondary-btn" type="button">Another prompt</button>
+              <button id="prep-btn" class="secondary-btn" type="button">Start prep timer</button>
+              <span id="prep-timer" class="prep-timer" role="timer" aria-live="off" hidden></span>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <div class="input-grid">
         <!-- Speak live -->
         <article class="card input-card" aria-labelledby="live-title">
@@ -42,22 +90,11 @@
           </header>
 
           <div class="field">
-            <span class="field-label" id="mode-label">What to talk about</span>
-            <div class="segmented" id="mode-picker" role="group" aria-labelledby="mode-label">
-              <button type="button" data-mode="free" class="active">My own talk</button>
-              <button type="button" data-mode="impromptu">Give me a topic</button>
-            </div>
-          </div>
-          <div id="topic-card" class="cue-card" hidden>
-            <span class="cue-label">Your topic</span>
-            <p id="topic-text"></p>
-            <button id="shuffle-topic" class="text-btn" type="button">Another topic</button>
-          </div>
-          <div class="field">
             <span class="field-label" id="duration-label">Aim for</span>
             <div class="segmented" id="duration-picker" role="group" aria-labelledby="duration-label">
               <button type="button" data-seconds="60">1 min</button>
               <button type="button" data-seconds="120" class="active">2 min</button>
+              <button type="button" data-seconds="180">3 min</button>
               <button type="button" data-seconds="300">5 min</button>
             </div>
           </div>
@@ -138,6 +175,7 @@
           <span id="timer-target" class="muted small"></span>
         </div>
         <p id="recording-topic" class="recording-topic" hidden></p>
+        <p id="recording-delivery" class="recording-delivery" hidden></p>
 
         <div class="meters">
           <div class="meter">
@@ -187,6 +225,7 @@
       <header class="results-head">
         <p id="results-eyebrow" class="eyebrow"></p>
         <h1 id="results-heading">Delivery report</h1>
+        <p id="results-prompt" class="results-prompt" hidden></p>
       </header>
       <div id="result-warnings" class="warnings" role="alert" hidden></div>
 
@@ -195,6 +234,11 @@
           <div id="score-dial" class="score-dial" aria-hidden="true"><span id="score-value">0</span><small>/100</small></div>
           <p id="score-verdict" class="verdict"></p>
           <p id="score-measured" class="muted small"></p>
+          <div id="goal-block" class="goal-block" hidden>
+            <span class="field-label">Delivery goal</span>
+            <p class="goal-line"><strong id="goal-label"></strong> <span id="goal-verdict" class="status"></span></p>
+            <ul id="goal-skills" class="goal-skills"></ul>
+          </div>
         </div>
         <div class="focus-block">
           <h2 class="block-title">Work on next</h2>

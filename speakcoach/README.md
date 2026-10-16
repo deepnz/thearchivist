@@ -32,6 +32,28 @@ flag clipping, background noise, very quiet audio and very short takes.
 All audio analysis happens in the browser (in a Web Worker); audio is never uploaded. A
 5-minute recording analyzes in under a second.
 
+## Speech prompts
+
+Choose **Give me a prompt** to practice on a cue card instead of your own talk. Four filters,
+each with an "Any" option (remembered between visits):
+
+| Filter | Options |
+|---|---|
+| Category | Storytelling, Persuasion, Explain & teach, Opinion & debate, Workplace, Special occasions, Table topics, Interview answers |
+| Theme | Personal growth, Work & career, Technology & the future, Travel & places, Food, arts & culture, Science & nature, Society & ethics, Fun & imagination |
+| Difficulty | Warm-up (1 min prep, 1 min talk), Standard (30 s prep, 2 min), Challenge (no prep, 3 min, plus a twist such as "include one specific number") |
+| Delivery | Conversational, Calm & deliberate, Energetic, Expressive storyteller, Persuasive, Formal & authoritative, Warm & sincere, Crisp & concise |
+
+There are 124 prompts. Each category suggests the delivery styles that suit it; with
+Delivery set to "Any", one of those is picked. When no prompt matches every filter, the
+theme (then the difficulty) is relaxed and the card says so.
+
+Each delivery style sets its own pace target (Calm 110–140 words/min, Energetic 150–180, and
+so on), which the Pace score uses in place of the general 130–170 range, and names the skills
+that make it work. The report shows a **delivery goal** verdict (hit, nearly there, missed)
+from those skills, and the coaching note says whether the talk answered the prompt and, with
+a transcript, whether the twist was used. Prompt takes appear in History under their category.
+
 ## Two ways to run it
 
 **Standalone** (this folder, served over HTTP): live microphone with meters (volume, pace,
@@ -104,7 +126,7 @@ speakcoach/
 │   ├── coach.js          # Claude coaching: artifact `sample` or API key
 │   ├── storage.js        # account (artifact db) or browser storage
 │   ├── example.js        # generated sample report
-│   ├── prompts.js        # impromptu topics
+│   ├── prompts.js        # speech prompts, themes, difficulties, delivery styles
 │   └── app.js            # UI controller
 ├── scripts/              # build-artifact.mjs, make-example.mjs
 ├── test/                 # unit tests

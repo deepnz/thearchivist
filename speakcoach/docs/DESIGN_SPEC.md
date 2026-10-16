@@ -28,13 +28,17 @@ built-in test runner.
 
 ## Screens / states (single page)
 
-1. **Setup** — mode picker (Free talk / Impromptu topic), target duration
-   (1 / 2 / 5 min), topic card with "shuffle" when Impromptu is selected.
+1. **Setup** — mode picker (My own talk / Give me a prompt). In prompt mode:
+   category, theme, difficulty and delivery filters; a cue card with the prompt,
+   delivery cue and pace target, prep time, length and (Challenge) a twist;
+   "Another prompt" and a prep countdown. Target duration (1 / 2 / 3 / 5 min)
+   follows the difficulty.
 2. **Recording** — big timer, pulsing record indicator, live transcript pane
    (final text solid, interim text dimmed), Stop button. If the target duration is
    reached the timer turns amber (overtime is allowed, not cut off).
 3. **Results** — stat tiles (score, WPM, fillers/min, vocabulary, longest fluent
-   stretch, duration), per-filler breakdown chips, rule-based tips, transcript,
+   stretch, duration), the prompt and delivery-goal verdict for prompt takes,
+   per-filler breakdown chips, rule-based tips, transcript,
    "Get AI coaching" panel, "Practice again" button.
 4. **History** — summary tiles (latest score with change vs previous, best,
    average of last 5, session count), a score-over-time chart, and a table of

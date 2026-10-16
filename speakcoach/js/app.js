@@ -8,7 +8,9 @@ import { coachingMode, getCoaching } from './coach.js';
 import {
   initStorage, storageKind, loadSessions, getSession, saveSession, updateSession, clearSessions, loadApiKey, saveApiKey,
 } from './storage.js';
-import { randomPrompt } from './prompts.js';
+import {
+  CATEGORIES, THEMES, DIFFICULTIES, DELIVERIES, CATEGORY, DIFFICULTY, DELIVERY, pickPrompt, promptRecord,
+} from './prompts.js';
 import { renderScoreChart, sessionScore, sessionSource, sessionPace } from './chart.js';
 import { EXAMPLE_SESSION } from './example.js';
 
@@ -21,9 +23,10 @@ const views = ['setup', 'recording', 'processing', 'results', 'history'].reduce(
 }, {});
 
 const state = {
-  mode: 'free',
+  mode: 'free', // 'free' (own talk) or 'prompt'
   targetSeconds: 120,
-  topic: null,
+  pick: null, // current prompt from pickPrompt()
+  prepInterval: null,
   file: null,
   recording: false,
   recorder: null,
@@ -57,27 +60,121 @@ function showMessage(el, text) {
 
 /* ================= Setup ================= */
 
+function setMode(mode) {
+  state.mode = mode;
+  for (const b of $('mode-picker').children) b.classList.toggle('active', b.dataset.mode === mode);
+  $('prompt-panel').hidden = mode !== 'prompt';
+  if (mode === 'prompt' && !state.pick) newPrompt();
+  if (mode !== 'prompt') stopPrep();
+}
+
 $('mode-picker').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-mode]');
-  if (!btn) return;
-  state.mode = btn.dataset.mode;
-  for (const b of $('mode-picker').children) b.classList.toggle('active', b === btn);
-  $('topic-card').hidden = state.mode !== 'impromptu';
-  if (state.mode === 'impromptu' && !state.topic) shuffleTopic();
+  if (btn) setMode(btn.dataset.mode);
 });
+
+function setTarget(seconds) {
+  state.targetSeconds = seconds;
+  for (const b of $('duration-picker').children) b.classList.toggle('active', Number(b.dataset.seconds) === seconds);
+}
 
 $('duration-picker').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-seconds]');
-  if (!btn) return;
-  state.targetSeconds = Number(btn.dataset.seconds);
-  for (const b of $('duration-picker').children) b.classList.toggle('active', b === btn);
+  if (btn) setTarget(Number(btn.dataset.seconds));
 });
 
-function shuffleTopic() {
-  state.topic = randomPrompt(state.topic);
-  $('topic-text').textContent = state.topic;
+/* ----- Prompt picker ----- */
+
+const FILTERS = ['category', 'theme', 'difficulty', 'delivery'];
+const FILTER_OPTIONS = { category: CATEGORIES, theme: THEMES, difficulty: DIFFICULTIES, delivery: DELIVERIES };
+const FILTER_ANY = { category: 'Any category', theme: 'Any theme', difficulty: 'Any difficulty', delivery: 'Suggested for the category' };
+const FILTERS_KEY = 'speakcoach.promptFilters.v1';
+
+function readFilters() {
+  return Object.fromEntries(FILTERS.map((f) => [f, $(`filter-${f}`).value]));
 }
-$('shuffle-topic').addEventListener('click', shuffleTopic);
+
+// Filter choices are a per-viewer convenience: remembered in this browser.
+for (const f of FILTERS) {
+  const select = $(`filter-${f}`);
+  select.append(new Option(FILTER_ANY[f], 'any'), ...FILTER_OPTIONS[f].map((o) => new Option(o.label, o.key)));
+  select.addEventListener('change', () => {
+    try { localStorage.setItem(FILTERS_KEY, JSON.stringify(readFilters())); } catch { /* optional */ }
+    newPrompt();
+  });
+}
+try {
+  const saved = JSON.parse(localStorage.getItem(FILTERS_KEY) || '{}');
+  for (const f of FILTERS) if (saved[f] && [...$(`filter-${f}`).options].some((o) => o.value === saved[f])) $(`filter-${f}`).value = saved[f];
+} catch { /* optional */ }
+
+function newPrompt() {
+  const filters = readFilters();
+  state.pick = pickPrompt(filters, { avoid: state.pick?.prompt });
+  renderPrompt(state.pick, filters);
+}
+
+function renderPrompt(pick, filters) {
+  stopPrep();
+  $('tag-category').textContent = pick.category.label;
+  $('tag-theme').textContent = pick.theme.label;
+  $('tag-difficulty').textContent = pick.difficulty.label;
+  $('prompt-text').textContent = pick.prompt;
+
+  const note = pick.relaxed.length
+    ? `No ${CATEGORY[filters.category]?.label ?? ''} prompt matches every filter, so this one has a different ${pick.relaxed.join(' and ')}.`
+    : pick.choices === 1 ? 'This is the only prompt that fits these filters. Set one to "Any" for more.' : '';
+  $('prompt-relaxed').hidden = !note;
+  $('prompt-relaxed').textContent = note;
+
+  $('delivery-label').textContent = `${pick.delivery.label}.`;
+  $('delivery-cue').textContent = pick.delivery.cue;
+  $('delivery-pace').textContent = `${pick.delivery.pace.min}–${pick.delivery.pace.max} words/min`;
+  $('plan-prep').textContent = pick.difficulty.prepSec ? `${formatClock(pick.difficulty.prepSec)} to plan your points` : 'None: start speaking right away';
+  $('plan-length').textContent = `About ${pick.difficulty.lengthSec / 60} minute${pick.difficulty.lengthSec === 60 ? '' : 's'}`;
+  $('twist-row').hidden = !pick.twist;
+  $('plan-twist').textContent = pick.twist ?? '';
+  $('prep-btn').hidden = !pick.difficulty.prepSec;
+  $('prep-btn').textContent = `Start ${formatClock(pick.difficulty.prepSec)} prep timer`;
+  setTarget(pick.difficulty.lengthSec);
+}
+
+function stopPrep() {
+  clearInterval(state.prepInterval);
+  state.prepInterval = null;
+  $('prep-timer').hidden = true;
+  $('prep-timer').classList.remove('done');
+}
+
+$('new-prompt-btn').addEventListener('click', newPrompt);
+
+$('prep-btn').addEventListener('click', () => {
+  if (!state.pick) return;
+  stopPrep();
+  const ends = performance.now() + state.pick.difficulty.prepSec * 1000;
+  const timer = $('prep-timer');
+  timer.hidden = false;
+  const tick = () => {
+    const left = Math.ceil((ends - performance.now()) / 1000);
+    if (left > 0) { timer.textContent = formatClock(left); return; }
+    stopPrep();
+    timer.hidden = false;
+    timer.classList.add('done');
+    timer.textContent = 'Time to speak.';
+    $('start-btn').focus();
+  };
+  tick();
+  state.prepInterval = setInterval(tick, 250);
+});
+
+// The prompt and delivery style a new take was made with (null for own talks).
+function currentPrompt() {
+  return state.mode === 'prompt' && state.pick ? promptRecord(state.pick) : null;
+}
+
+function deliveryFor(prompt) {
+  return prompt ? DELIVERY[prompt.delivery] ?? null : null;
+}
 
 // Phones get a direct "record with your recorder app" option.
 if (window.matchMedia?.('(pointer: coarse)').matches) $('capture-btn').hidden = false;
@@ -217,8 +314,18 @@ $('start-btn').addEventListener('click', async () => {
   $('pace-live').textContent = 'Listening…';
   $('pace-live').className = 'meter-chip';
   $('pace-value').textContent = '—';
-  $('recording-topic').hidden = state.mode !== 'impromptu';
-  if (state.mode === 'impromptu') $('recording-topic').textContent = `“${state.topic}”`;
+  stopPrep();
+  const prompt = currentPrompt();
+  $('recording-topic').hidden = !prompt;
+  $('recording-delivery').hidden = !prompt;
+  if (prompt) {
+    $('recording-topic').textContent = `“${prompt.text}”`;
+    const delivery = DELIVERY[prompt.delivery];
+    $('recording-delivery').replaceChildren(
+      Object.assign(document.createElement('strong'), { textContent: `${delivery.label}: ` }),
+      document.createTextNode(prompt.twist ? `${delivery.cue} Twist: ${prompt.twist}` : delivery.cue),
+    );
+  }
   $('timer').textContent = '0:00';
   $('timer').classList.remove('overtime');
   $('timer-target').textContent = `aim for ${formatClock(state.targetSeconds)}`;
@@ -340,7 +447,8 @@ async function analyzeBlob(blob, { source, transcript, clarity, fileName }) {
   // With words, pace is exact: words over the time from first to last speech.
   const talkSec = acoustic.speechFound ? acoustic.talkSec : decoded.durationSec;
   const metrics = transcript ? analyze(transcript, talkSec) : null;
-  const report = buildReport({ text: metrics, acoustic, clarity });
+  const prompt = currentPrompt();
+  const report = buildReport({ text: metrics, acoustic, clarity, delivery: deliveryFor(prompt) });
   const warnings = qualityNotes(acoustic);
   if (decoded.trimmed) warnings.push(`Only the first ${MAX_ANALYSIS_SEC / 60} minutes were analyzed.`);
 
@@ -353,7 +461,8 @@ async function analyzeBlob(blob, { source, transcript, clarity, fileName }) {
     at: new Date().toISOString(),
     source,
     mode: state.mode,
-    topic: state.mode === 'impromptu' && source === 'live' ? state.topic : null,
+    topic: prompt?.text ?? null,
+    prompt,
     fileName,
     durationSec: Math.round(decoded.durationSec),
     transcript,
@@ -389,14 +498,16 @@ $('analyze-manual-btn').addEventListener('click', async () => {
   }
   showMessage($('manual-error'), '');
   const metrics = analyze(transcript, seconds);
-  const report = buildReport({ text: metrics });
+  const prompt = currentPrompt();
+  const report = buildReport({ text: metrics, delivery: deliveryFor(prompt) });
   if (state.audioUrl) { URL.revokeObjectURL(state.audioUrl); state.audioUrl = null; }
   show('processing');
   await finishSession({
     at: new Date().toISOString(),
     source: 'text',
-    mode: 'free',
-    topic: null,
+    mode: state.mode,
+    topic: prompt?.text ?? null,
+    prompt,
     durationSec: seconds,
     transcript,
     metrics,
@@ -415,9 +526,41 @@ const VERDICTS = [
 ];
 
 function sourceLabel(s) {
-  if (s.source === 'upload') return s.fileName ? `Recording · ${s.fileName}` : 'Recording';
-  if (s.source === 'text') return 'Transcript only';
-  return s.mode === 'impromptu' ? 'Live · impromptu' : 'Live';
+  const kind = s.prompt
+    ? [CATEGORY[s.prompt.category]?.label, DIFFICULTY[s.prompt.difficulty]?.label].filter(Boolean).join(', ')
+    : null;
+  const how = s.source === 'upload' ? (s.fileName ? `Recording · ${s.fileName}` : 'Recording')
+    : s.source === 'text' ? 'Transcript only'
+      : s.mode === 'impromptu' ? 'Live · impromptu' : 'Live';
+  return kind ? `${kind} · ${how}` : how;
+}
+
+const GOAL_VERDICTS = {
+  hit: ['strong', 'Hit'],
+  close: ['fair', 'Nearly there'],
+  missed: ['focus', 'Not yet'],
+  unmeasured: ['unmeasured', 'Needs a transcript'],
+};
+
+function renderGoal(session, report) {
+  const goal = report.deliveryGoal;
+  $('goal-block').hidden = !goal;
+  if (!goal) return;
+  $('goal-label').textContent = goal.label;
+  const [cls, text] = GOAL_VERDICTS[goal.verdict];
+  $('goal-verdict').className = `status ${cls}`;
+  $('goal-verdict').textContent = text;
+  const rows = goal.items.map((i) => {
+    const li = document.createElement('li');
+    li.append(`${i.label} `, Object.assign(document.createElement('span'), { textContent: `${i.score}/100` }));
+    return li;
+  });
+  if (session.prompt?.twist) {
+    const li = document.createElement('li');
+    li.textContent = `Twist: ${session.prompt.twist}`;
+    rows.push(li);
+  }
+  $('goal-skills').replaceChildren(...rows);
 }
 
 function renderScore(score) {
@@ -563,6 +706,9 @@ function renderResults(session, { warnings = [], take = null, audioUrl = null, f
 
   // Older sessions have no report: build one from what they stored.
   const report = session.report ?? buildReport({ text: session.metrics });
+  $('results-prompt').hidden = !session.prompt;
+  $('results-prompt').textContent = session.prompt ? `“${session.prompt.text}”` : '';
+  renderGoal(session, report);
   renderScore(sessionScore(session) ?? report.score);
   const measured = report.items.map((i) => i.label.toLowerCase());
   $('score-measured').textContent = measured.length ? `Based on ${measured.join(', ')}.` : '';
@@ -621,7 +767,7 @@ async function openSession(id) {
 }
 
 $('again-btn').addEventListener('click', () => {
-  if (state.mode === 'impromptu') shuffleTopic();
+  if (state.mode === 'prompt') newPrompt();
   show('setup');
 });
 $('back-history-btn').addEventListener('click', showHistory);

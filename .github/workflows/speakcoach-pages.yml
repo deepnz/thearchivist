@@ -1,0 +1,63 @@
+# Publishes SpeakCoach (speakcoach/) to GitHub Pages so the live microphone
+# works over HTTPS: https://deepnz.github.io/thearchivist/
+#
+# One-time setup (repo admin): Settings → Pages → Source: "GitHub Actions".
+# To deploy from the SpeakCoach branch as well as master, also add that branch
+# under Settings → Environments → github-pages → Deployment branches.
+name: Deploy SpeakCoach to Pages
+
+on:
+  push:
+    branches: [master, claude/speakcoach-repo-setup-ajhrdh]
+    paths:
+      - 'speakcoach/**'
+      - '.github/workflows/speakcoach-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push replaces a queued one.
+concurrency:
+  group: speakcoach-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run tests
+        working-directory: speakcoach
+        run: npm test
+
+      # Only what the browser needs: no tests, scripts or docs.
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp speakcoach/index.html _site/
+          cp -r speakcoach/css speakcoach/js _site/
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

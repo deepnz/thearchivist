@@ -4,10 +4,13 @@ A rehearsal room for public speaking that runs in your browser. Speak live or up
 recording, and get a delivery report on pace, pauses, intonation, volume and energy, filler
 words, word variety and clarity, plus a coaching note from Claude.
 
-**Shareable version:** published as a Claude artifact at
-<https://claude.ai/artifact/9esqfXRvoDnsESzDyqnJdc> (private until shared from its Share menu).
+**Live app with microphone:** <https://deepnz.github.io/thearchivist/> (GitHub Pages; see
+[Publishing to GitHub Pages](#publishing-to-github-pages)).
 
-> SpeakCoach lives in this repository (`deepnz/thearchive`) on branch
+**Claude artifact:** <https://claude.ai/artifact/9esqfXRvoDnsESzDyqnJdc> (uploads, coaching
+on the viewer's Claude account; private until shared from its Share menu).
+
+> SpeakCoach lives in this repository (`deepnz/thearchivist`, formerly `thearchive`) on branch
 > `claude/speakcoach-repo-setup-ajhrdh`. See [Moving to its own repo](#moving-to-its-own-repo).
 
 ## What it measures
@@ -53,6 +56,22 @@ node scripts/build-artifact.mjs dist/artifact.html   # page content + inlined CS
 
 Then publish `dist/artifact.html` with every file in `js/` alongside it (as `js/<name>.js`) and
 capabilities `{ sample: {}, db: {}, user: {} }`.
+
+## Publishing to GitHub Pages
+
+`.github/workflows/speakcoach-pages.yml` runs the tests and publishes the app (page, CSS and
+JS only) on every push to `master` or `claude/speakcoach-repo-setup-ajhrdh` that touches
+`speakcoach/`. Pages serves it over HTTPS, which browsers require for microphone access.
+
+One-time setup by a repo admin:
+
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
+2. To deploy from the SpeakCoach branch (not just `master`): **Settings → Environments →
+   github-pages → Deployment branches and tags → Add rule** `claude/speakcoach-repo-setup-ajhrdh`.
+3. Re-run the latest "Deploy SpeakCoach to Pages" run from the **Actions** tab, or push a change.
+
+On Pages the app runs in standalone mode: live mic with meters and live words (Chrome, Edge,
+Safari), history in the browser, coaching with your own Anthropic API key.
 
 ## Tests
 
